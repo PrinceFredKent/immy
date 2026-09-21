@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+/* Light Mode Overrides for System Auto / Light Theme */
+html.light,
+html.light body,
+html.light .bg-app-canvas,
+html.light [class*="bg-[#0d0f14]"],
+html.light [class*="bg-[#0f1115]"],
+html.light [class*="bg-[#11131a]"],
+html.light [class*="bg-[#090b0e]"],
+html.light [class*="bg-[#0a0c10]"],
+html.light [class*="bg-[#0e1017]"],
+html.light [class*="bg-[#0b0d11]"] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* 2. All Card & Container Surface Backgrounds in Light Mode */
+html.light [class*="bg-[#12151d]"],
+html.light [class*="bg-[#13161e]"],
+html.light [class*="bg-[#13161f]"],
+html.light [class*="bg-[#14161f]"],
+html.light [class*="bg-[#141722]"],
+html.light [class*="bg-[#151720]"],
+html.light [class*="bg-[#151922]"],
+html.light [class*="bg-[#161822]"],
+html.light [class*="bg-[#161823]"],
+html.light [class*="bg-[#161a23]"],
+html.light [class*="bg-[#181c25]"],
+html.light [class*="bg-[#1a1d29]"],
+html.light [class*="bg-[#10131a]"],
+html.light [class*="bg-[#12151c]"],
+html.light [class*="bg-[#13161c]"],
+html.light [class*="bg-[#1c202a]"],
+html.light [class*="bg-[#0f1117]"],
+html.light [class*="bg-[#141720]"],
+html.light [class*="bg-[#1a1d26]"],
+html.light [class*="bg-[#11131a]"],
+html.light [class*="bg-[#161823]"],
+html.light [class*="bg-[#181c25]"],
+html.light [class*="bg-[#0b0d11]"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* 3. Nested Cards, Pill Badges, Dropdowns & Inputs (excluding photo overlays) */
+html.light [class*="bg-zinc-800"]:not(.photo-card-overlay *),
+html.light [class*="bg-zinc-900"]:not(.photo-card-overlay *),
+html.light [class*="bg-[#1e2230]"]:not(.photo-card-overlay *),
+html.light [class*="bg-[#222736]"]:not(.photo-card-overlay *),
+html.light [class*="bg-[#1c1f2b]"]:not(.photo-card-overlay *) {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html.light [class*="bg-zinc-800"]:not(.photo-card-overlay *):hover,
+html.light [class*="bg-zinc-900"]:not(.photo-card-overlay *):hover {
+  background-color: #e2e8f0 !important;
+}
+
+/* 4. Translucent White Overlays in Light Mode (non-photo contexts) */
+html.light [class*="bg-white/5"]:not(.photo-card-overlay *),
+html.light [class*="bg-white/5"]:not(.photo-card-overlay) {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+html.light [class*="bg-white/10"]:not(.photo-card-overlay *),
+html.light [class*="bg-white/10"]:not(.photo-card-overlay) {
+  background-color: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+}
+html.light [class*="bg-white/20"]:not(.photo-card-overlay *),
+html.light [class*="bg-white/20"]:not(.photo-card-overlay) {
+  background-color: #cbd5e1 !important;
+  border-color: #94a3b8 !important;
+}
+
+/* 5. Text Colors & Contrast in Light Mode */
+html.light .text-white:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light [class*="text-zinc-100"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light [class*="text-zinc-200"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light [class*="text-slate-100"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light [class*="text-slate-200"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]) {
+  color: #0f172a !important;
+}
+
+/* Explicit dark elements (like rating tags, dark item pills, full screen overlays) always stay dark with white text in light mode */
+html.light [class*="bg-black/"]:not(.fixed):not(.absolute) *,
+html.light [class*="bg-black"]:not(.fixed):not(.absolute) *,
+html.light [class*="bg-black/"]:not(.fixed):not(.absolute),
+html.light [class*="bg-black"]:not(.fixed):not(.absolute),
+html.light [class*="bg-zinc-950"]:not(.fixed):not(.absolute) *,
+html.light [class*="bg-zinc-950"]:not(.fixed):not(.absolute) {
+  color: #ffffff !important;
+}
+
+/* Preserve original dark styling & white text on dark photo overlays and modals */
+.photo-card-overlay [class*="bg-black"],
+.photo-card-overlay [class*="bg-black/"],
+html.light .photo-card-overlay [class*="bg-black"],
+html.light .photo-card-overlay [class*="bg-black/"] {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  color: #ffffff !important;
+}
+
+html.light .photo-card-overlay .text-white,
+html.light .photo-card-overlay [class*="text-white"],
+html.light .photo-card-overlay [class*="text-zinc-100"],
+html.light .photo-card-overlay [class*="text-zinc-200"] {
+  color: #ffffff !important;
+}
+
+html.light .photo-card-overlay [class*="text-zinc-300"],
+html.light .photo-card-overlay [class*="text-zinc-400"] {
+  color: #e2e8f0 !important;
+}
+
+html.light [class*="text-zinc-300"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light [class*="text-zinc-400"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light [class*="text-zinc-500"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light [class*="text-slate-300"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light [class*="text-slate-400"]:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]) {
+  color: #475569 !important;
+}
+
+/* 6. Accent Text Colors for High Readability on White Cards */
+html.light .text-amber-400:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light .text-amber-300:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]) {
+  color: #d97706 !important; /* amber-600 */
+}
+
+html.light .text-emerald-400:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light .text-emerald-300:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]) {
+  color: #059669 !important; /* emerald-600 */
+}
+
+html.light .text-rose-400:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light .text-rose-300:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]) {
+  color: #e11d48 !important; /* rose-600 */
+}
+
+html.light .text-blue-400:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light .text-blue-300:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]) {
+  color: #2563eb !important; /* blue-600 */
+}
+
+html.light .text-teal-400:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]),
+html.light .text-teal-300:not(.photo-card-overlay *):not([class*="bg-black"]:not(.fixed):not(.absolute) *):not([class*="bg-black"]):not([class*="bg-zinc-950"]:not(.fixed):not(.absolute) *):not([class*="bg-zinc-950"]) {
+  color: #0d9488 !important; /* teal-600 */
+}
+
+/* 7. Borders in Light Mode */
+html.light [class*="border-white/5"],
+html.light [class*="border-white/10"],
+html.light [class*="border-white/15"],
+html.light [class*="border-white/20"],
+html.light [class*="border-white/30"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* 8. Gradient Adjustments for Light Mode (non-photo contexts) */
+html.light [class*="from-[#171922]"]:not(.photo-card-overlay *),
+html.light [class*="from-[#181b26]"]:not(.photo-card-overlay *),
+html.light [class*="from-[#151720]"]:not(.photo-card-overlay *),
+html.light [class*="from-[#161a22]"]:not(.photo-card-overlay *),
+html.light [class*="from-[#161a24]"]:not(.photo-card-overlay *),
+html.light [class*="from-[#1b1f2b]"]:not(.photo-card-overlay *) {
+  --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-from), var(--tw-gradient-to)) !important;
+}
+
+html.light [class*="via-[#1a1d29]"]:not(.photo-card-overlay *),
+html.light [class*="via-[#141720]"]:not(.photo-card-overlay *),
+html.light [class*="via-[#12151c]"]:not(.photo-card-overlay *) {
+  --tw-gradient-via: #f8fafc var(--tw-gradient-via-position) !important;
+}
+
+html.light [class*="to-[#201a14]"]:not(.photo-card-overlay *),
+html.light [class*="to-[#11131a]"]:not(.photo-card-overlay *),
+html.light [class*="to-[#0d0f14]"]:not(.photo-card-overlay *),
+html.light [class*="to-[#12141c]"]:not(.photo-card-overlay *) {
+  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
+}
+
+/* 9. Header, Navigation, & Modals in Light Mode */
+html.light header,
+html.light nav,
+html.light footer {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Inputs in Light Mode */
+html.light input,
+html.light select,
+html.light textarea {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #f59e0b !important; /* Amber primary brand accent border on focus */
+}
+
+/* Hovered state text highlights in Light Mode (reverts white text hover on unselected items) */
+html.light [class*="hover:text-white"]:not(.photo-card-overlay *):hover,
+html.light [class*="hover:text-zinc-100"]:not(.photo-card-overlay *):hover,
+html.light [class*="hover:text-zinc-200"]:not(.photo-card-overlay *):hover,
+html.light [class*="hover:text-slate-100"]:not(.photo-card-overlay *):hover,
+html.light [class*="hover:text-slate-200"]:not(.photo-card-overlay *):hover {
+  color: #0f172a !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Explicit select option styling for both light and dark mode */
+html.light option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html:not(.light) option {
+  background-color: #12151d !important;
+  color: #ffffff !important;
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 17, 21, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+/* Custom Cinematic Gradient Overlay for Customize Modal Image to blend perfectly in both modes */
+.modal-gradient-overlay {
+  background: linear-gradient(to top, #12151d 0%, rgba(18, 21, 29, 0.95) 15%, rgba(18, 21, 29, 0.5) 45%, transparent 100%) !important;
+}
+
+html.light .modal-gradient-overlay {
+  background: linear-gradient(to top, #ffffff 0%, rgba(255, 255, 255, 0.98) 15%, rgba(255, 255, 255, 0.55) 45%, transparent 100%) !important;
+}
+
+

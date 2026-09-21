@@ -1,0 +1,6 @@
+{
+  "name": "Immy Drinks",
+  "description": "Online drinks order web app with custom drink builder, favorite drinks, real-time live courier tracking, push notifications, and points-based loyalty program.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Circle Radial Gradient -->
+    <radialGradient id="orangeCircle" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#ff9212"/>
+      <stop offset="70%" stop-color="#ff6a00"/>
+      <stop offset="100%" stop-color="#e65100"/>
+    </radialGradient>
+
+    <!-- Green Ring Gradient -->
+    <linearGradient id="greenBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1db954"/>
+      <stop offset="50%" stop-color="#0f8a3c"/>
+      <stop offset="100%" stop-color="#075e24"/>
+    </linearGradient>
+
+    <!-- Text Curved Path -->
+    <path id="curvePath" d="M 90, 310 A 180, 180 0 0, 0 422, 310" />
+
+    <!-- 3D Shadow for Immy Text -->
+    <filter id="shadow3d" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="3" dy="5" stdDeviation="0" flood-color="#094a1b" flood-opacity="1"/>
+    </filter>
+  </defs>
+
+  <!-- Outer Green Border Circle -->
+  <circle cx="256" cy="270" r="210" fill="none" stroke="url(#greenBorder)" stroke-width="14"/>
+  <circle cx="256" cy="270" r="201" fill="none" stroke="#ffffff" stroke-width="6"/>
+
+  <!-- Main Orange Center Badge -->
+  <circle cx="256" cy="265" r="195" fill="url(#orangeCircle)"/>
+
+  <!-- Layered Drink Glass at Top Center -->
+  <g transform="translate(256, 155)">
+    <!-- Leaves on Top -->
+    <path d="M-8,-85 C-30,-125 15,-130 0,-85 C15,-130 60,-125 8,-85 Z" fill="#1db954" stroke="#ffffff" stroke-width="2.5"/>
+    <path d="M0,-85 C-12,-115 -2,-120 0,-85" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+
+    <!-- Straw -->
+    <path d="M-25,-90 L-65,-140 L-100,-120" fill="none" stroke="#1db954" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-25,-90 L-65,-140 L-100,-120" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Glass Outlines & Struts -->
+    <path d="M-45,-80 L45,-80 L30,40 L-30,40 Z" fill="#ffffff" opacity="0.15"/>
+    <path d="M-45,-80 L-30,40 C-28,52 28,52 30,40 L45,-80" fill="none" stroke="#111111" stroke-width="7"/>
+
+    <!-- Red Layer (Top) -->
+    <path d="M-43,-75 L43,-75 L38,-45 L-38,-45 Z" fill="#ea2a2a"/>
+    <!-- Orange/Yellow Layer (Middle) -->
+    <path d="M-38,-45 L38,-45 L34,-10 L-34,-10 Z" fill="#ffcc00"/>
+    <!-- Green Layer (Bottom) -->
+    <path d="M-34,-10 L34,-10 L30,38 C25,48 -25,48 -30,38 Z" fill="#1db954"/>
+
+    <!-- Straw Lines inside Glass -->
+    <line x1="-35" y1="-80" x2="-20" y2="35" stroke="#111111" stroke-width="6"/>
+    <line x1="35" y1="-80" x2="20" y2="35" stroke="#111111" stroke-width="6"/>
+  </g>
+
+  <!-- DRINKS Subtitle inside Orange Badge -->
+  <text x="256" y="380" text-anchor="middle" font-family="'Outfit', 'Arial Black', sans-serif" font-weight="900" font-size="34" letter-spacing="2" fill="#0d0d0d">
+    DRINKS
+  </text>
+  <!-- Coffee bean above 'I' in DRINKS -->
+  <ellipse cx="168" cy="355" rx="5" ry="3" fill="#0d0d0d" transform="rotate(-20, 168, 355)"/>
+
+  <!-- Main White Script 'Immy' with 3D Green Outline -->
+  <g filter="url(#shadow3d)">
+    <path d="M 80,360 C 130,220 180,130 215,130 C 230,130 220,170 200,230 L 175,300 C 160,345 185,340 210,290 C 225,260 240,220 250,220 C 265,220 250,270 240,300 C 255,260 275,220 290,220 C 305,220 295,260 285,290 C 300,260 320,220 335,220 C 355,220 330,280 375,220 C 390,200 420,210 405,240 C 385,280 300,320 140,360 C 100,370 70,380 80,360 Z" fill="#ffffff" stroke="#0d8a2a" stroke-width="12" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Bottom Curved Tagline: "Drink With Distinction" -->
+  <text fill="#0f8a3c" font-family="'Outfit', 'Plus Jakarta Sans', sans-serif" font-weight="800" font-size="25" letter-spacing="2.5">
+    <textPath href="#curvePath" startOffset="50%" text-anchor="middle">
+      Drink With Distinction
+    </textPath>
+  </text>
+</svg>
