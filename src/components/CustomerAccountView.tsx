@@ -15,7 +15,6 @@ import {
   Palette
 } from 'lucide-react';
 import { UserProfile, DeliveryAddress } from '../types';
-import { PWAInstallButton } from './PWAInstallButton';
 import { ThemeSelector } from './ThemeSelector';
 import { ThemeMode } from '../hooks/useTheme';
 
@@ -352,9 +351,6 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({
           ))}
         </div>
       </div>
-
-      {/* App Installability Card */}
-      <PWAInstallButton variant="settings" />
 
       {/* Account Management & Danger Zone */}
       {onDeleteAccount && (

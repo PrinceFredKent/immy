@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { DeliveryAddress, UserRole, UserProfile, PushNotificationEvent } from '../types';
 import { formatCurrency } from '../utils/formatters';
-import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavbarProps {
   currentTab: 'home' | 'menu' | 'tracker' | 'orders' | 'favorites' | 'profile';
@@ -168,12 +167,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right: Notifications, Profile Avatar & Cart */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            
-            {/* PWA Install Button (desktop) */}
-            <div className="hidden sm:block">
-              <PWAInstallButton variant="header" />
-            </div>
-
             {/* Notification Bell with Indicator Dot & Popover */}
             <div className="relative">
               <button

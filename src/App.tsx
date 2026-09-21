@@ -59,7 +59,6 @@ import { AuthModal } from './components/AuthModal';
 import { AdminAccountView } from './components/AdminAccountView';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AppPreloader } from './components/AppPreloader';
-import { PWAInstallButton } from './components/PWAInstallButton';
 import { useDeviceGestures } from './hooks/useDeviceGestures';
 import { useTheme } from './hooks/useTheme';
 import { supabase } from './lib/supabase';
@@ -1254,11 +1253,6 @@ export default function App() {
                     </button>
                   )}
                 </div>
-              </div>
-
-              {/* In-App PWA Install Banner */}
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <PWAInstallButton variant="banner" />
               </div>
 
               {/* Sticky Search with Merged Sorter & Filter Bar */}

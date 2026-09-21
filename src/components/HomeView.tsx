@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, 
@@ -17,7 +17,10 @@ import {
   Check,
   Flame,
   ArrowRight,
-  ChevronLeft
+  ChevronLeft,
+  RefreshCw,
+  Shuffle,
+  TrendingUp
 } from 'lucide-react';
 import { Drink, DrinkCategory, UserProfile, HeroSlide } from '../types';
 import { CATEGORIES } from '../data/mockDrinks';
@@ -35,6 +38,18 @@ interface HomeViewProps {
   onNavigateToOrders: () => void;
   onNavigateToFavorites: () => void;
   onShowToast: (msg: string) => void;
+}
+
+// Deterministic pseudo-random shuffle using linear congruential generator
+function shuffleWithSeed<T>(array: T[], seed: number): T[] {
+  const result = [...array];
+  let s = Math.abs(seed) || 1;
+  for (let i = result.length - 1; i > 0; i--) {
+    s = (s * 9301 + 49297) % 233280;
+    const j = Math.floor((s / 233280) * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -60,6 +75,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [slideDirection, setSlideDirection] = useState<number>(1);
   const [hasCopiedPromo, setHasCopiedPromo] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<DrinkCategory>('all');
+  const [isCyclingAnimation, setIsCyclingAnimation] = useState(false);
+
+  // Dynamic cycle seed generated anew on every refresh / app reopen
+  const [cycleSeed, setCycleSeed] = useState(() => {
+    // Generate fresh entropy per app load / refresh
+    const freshEntropy = Math.floor(Math.random() * 1000000) + (Date.now() % 100000);
+    return freshEntropy;
+  });
+
+  // Manual cycle handler for user on demand
+  const handleCyclePicks = useCallback(() => {
+    setIsCyclingAnimation(true);
+    setCycleSeed((prev) => prev + Math.floor(Math.random() * 500) + 7);
+    onShowToast('Cycled to fresh menu specials! ✨');
+    setTimeout(() => {
+      setIsCyclingAnimation(false);
+    }, 400);
+  }, [onShowToast]);
 
   // Ensure currentSlide is within bounds when activeSlides change
   useEffect(() => {
@@ -106,9 +139,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setCurrentSlide((prev) => (prev + 1) % activeSlides.length);
   };
 
-  // Filter popular and best selling drinks
-  const popularDrinks = drinks.filter((d) => d.isPopular || d.rating >= 4.85).slice(0, 6);
-  const bestSellingDrinks = drinks.slice(0, 6);
+  // Dynamically cycled drinks sections on every refresh / seed
+  const { popularDrinks, bestSellingDrinks } = useMemo(() => {
+    if (!drinks || drinks.length === 0) {
+      return { popularDrinks: [], bestSellingDrinks: [] };
+    }
+
+    // In-stock drinks preferred
+    const available = drinks.filter((d) => !d.isOutOfStock);
+    const pool = available.length >= 6 ? available : drinks;
+
+    // 1. Popular/High-Rated pool with deterministic cycle shuffle
+    const popularCandidates = pool.filter((d) => d.isPopular || d.rating >= 4.8 || d.isNew);
+    const popularSource = popularCandidates.length >= 4 ? popularCandidates : pool;
+    const shuffledPopular = shuffleWithSeed(popularSource, cycleSeed);
+    const selectedPopular = shuffledPopular.slice(0, Math.min(6, pool.length));
+
+    // 2. Best-Selling / Chef picks pool (exclude selected popular items if enough drinks exist)
+    const selectedPopularIds = new Set(selectedPopular.map((d) => d.id));
+    const remainingPool = pool.filter((d) => !selectedPopularIds.has(d.id));
+    const bestSellingSource = remainingPool.length >= 4 ? remainingPool : pool;
+    const shuffledBestSelling = shuffleWithSeed(bestSellingSource, cycleSeed + 42);
+    const selectedBestSelling = shuffledBestSelling.slice(0, Math.min(6, pool.length));
+
+    return {
+      popularDrinks: selectedPopular,
+      bestSellingDrinks: selectedBestSelling,
+    };
+  }, [drinks, cycleSeed]);
 
   // Copy promo code
   const handleCopyCode = (code: string) => {
@@ -380,101 +438,128 @@ export const HomeView: React.FC<HomeViewProps> = ({
             className="space-y-3"
           >
             <div className="flex items-center justify-between">
-              <h2 className="font-display font-extrabold text-lg sm:text-xl text-white tracking-tight">
-                Popular Drinks
-              </h2>
-              <button
-                onClick={() => onNavigateToMenu('all')}
-                className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
-              >
-                <span>View all</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <h2 className="font-display font-extrabold text-lg sm:text-xl text-white tracking-tight">
+                  Popular & Trending
+                </h2>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 font-semibold">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  <span>Dynamic Rotation</span>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={handleCyclePicks}
+                  title="Cycle to different drinks from the menu"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#1a1d29] hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-zinc-300 hover:text-amber-400 text-xs font-semibold transition-all cursor-pointer shadow-sm"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCyclingAnimation ? 'animate-spin text-amber-400' : ''}`} />
+                  <span className="hidden xs:inline">Cycle Picks</span>
+                </motion.button>
+
+                <button
+                  onClick={() => onNavigateToMenu('all')}
+                  className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors ml-1"
+                >
+                  <span>View all</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
-            {/* Popular Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
-              {popularDrinks.map((drink, idx) => {
-                const isFav = userProfile.favoriteDrinkIds?.includes(drink.id);
-                return (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-30px' }}
-                    transition={{ duration: 0.3, delay: idx * 0.05 }}
-                    whileHover={{ y: -3 }}
-                    key={drink.id}
-                    id={`popular-drink-${drink.id}`}
-                    onClick={() => onSelectDrink(drink)}
-                    className="group relative cursor-pointer bg-[#14161f] border border-white/10 hover:border-amber-500/40 rounded-3xl p-3 sm:p-4 shadow-xl hover:shadow-2xl hover:shadow-amber-500/10 transition-all flex flex-col justify-between"
-                  >
-                    {/* Rounded Drink Image with Heart Button */}
-                    <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-black/40 mb-2.5">
-                      <img
-                        src={drink.image}
-                        alt={drink.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                      
-                      {/* Floating Heart Button */}
-                      <motion.button
-                        whileTap={{ scale: 0.8 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleFavorite(drink.id);
-                        }}
-                        aria-label="Toggle favorite"
-                        className={`absolute top-2 right-2 p-2 rounded-full backdrop-blur-md border transition-all ${
-                          isFav 
-                            ? 'bg-rose-500/60 border-rose-400 text-white' 
-                            : 'bg-black/60 hover:bg-black/80 text-white border-white/20'
-                        }`}
-                      >
-                        <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-white text-white' : 'text-white'}`} />
-                      </motion.button>
-
-                      {/* Rating Tag */}
-                      <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md border border-white/15 text-[10px] sm:text-[11px] font-bold text-white flex items-center gap-1">
-                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                        <span>{formatRating(drink.rating)}</span>
-                      </div>
-                    </div>
-
-                    {/* Details */}
-                    <div className="space-y-1.5 flex-1 flex flex-col justify-between">
-                      <div>
-                        <h3 className="font-display font-bold text-sm sm:text-base text-white group-hover:text-amber-300 transition-colors line-clamp-1">
-                          {drink.name}
-                        </h3>
-                        <p className="text-[11px] text-zinc-400 line-clamp-1">
-                          {drink.tagline}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                        <span className="font-extrabold text-sm sm:text-base text-amber-400">
-                          {formatCurrency(drink.price)}
-                        </span>
+            {/* Popular Grid with Dynamic Key Animation */}
+            <AnimatePresence mode="wait">
+              <motion.div 
+                key={`popular-grid-${cycleSeed}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5"
+              >
+                {popularDrinks.map((drink, idx) => {
+                  const isFav = userProfile.favoriteDrinkIds?.includes(drink.id);
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, delay: idx * 0.04 }}
+                      whileHover={{ y: -3 }}
+                      key={drink.id}
+                      id={`popular-drink-${drink.id}`}
+                      onClick={() => onSelectDrink(drink)}
+                      className="group relative cursor-pointer bg-[#14161f] border border-white/10 hover:border-amber-500/40 rounded-3xl p-3 sm:p-4 shadow-xl hover:shadow-2xl hover:shadow-amber-500/10 transition-all flex flex-col justify-between"
+                    >
+                      {/* Rounded Drink Image with Heart Button */}
+                      <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-black/40 mb-2.5">
+                        <img
+                          src={drink.image}
+                          alt={drink.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                        
+                        {/* Floating Heart Button */}
                         <motion.button
-                          whileTap={{ scale: 0.88 }}
-                          whileHover={{ scale: 1.08 }}
+                          whileTap={{ scale: 0.8 }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onQuickAdd(drink);
+                            onToggleFavorite(drink.id);
                           }}
-                          className="p-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black shadow-md"
-                          title="Quick Add"
+                          aria-label="Toggle favorite"
+                          className={`absolute top-2 right-2 p-2 rounded-full backdrop-blur-md border transition-all ${
+                            isFav 
+                              ? 'bg-rose-500/60 border-rose-400 text-white' 
+                              : 'bg-black/60 hover:bg-black/80 text-white border-white/20'
+                          }`}
                         >
-                          <Plus className="w-4 h-4 stroke-[3]" />
+                          <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-white text-white' : 'text-white'}`} />
                         </motion.button>
+
+                        {/* Rating Tag */}
+                        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md border border-white/15 text-[10px] sm:text-[11px] font-bold text-white flex items-center gap-1">
+                          <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                          <span>{formatRating(drink.rating)}</span>
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+
+                      {/* Details */}
+                      <div className="space-y-1.5 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3 className="font-display font-bold text-sm sm:text-base text-white group-hover:text-amber-300 transition-colors line-clamp-1">
+                            {drink.name}
+                          </h3>
+                          <p className="text-[11px] text-zinc-400 line-clamp-1">
+                            {drink.tagline}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                          <span className="font-extrabold text-sm sm:text-base text-amber-400">
+                            {formatCurrency(drink.price)}
+                          </span>
+                          <motion.button
+                            whileTap={{ scale: 0.88 }}
+                            whileHover={{ scale: 1.08 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onQuickAdd(drink);
+                            }}
+                            className="p-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black shadow-md"
+                            title="Quick Add"
+                          >
+                            <Plus className="w-4 h-4 stroke-[3]" />
+                          </motion.button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            </AnimatePresence>
           </motion.div>
 
           {/* 5. REFINED SPECIAL OFFER BANNER (Horizontal Split, Generous Image Room, Minimal Words) */}
@@ -537,9 +622,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
             className="space-y-3"
           >
             <div className="flex items-center justify-between">
-              <h2 className="font-display font-extrabold text-lg sm:text-xl text-white tracking-tight">
-                Best Selling
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-display font-extrabold text-lg sm:text-xl text-white tracking-tight">
+                  Chef's Daily Curations & Best Sellers
+                </h2>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] text-emerald-400 font-semibold">
+                  <TrendingUp className="w-2.5 h-2.5" />
+                  <span>Fresh Menu Picks</span>
+                </span>
+              </div>
+
               <button
                 onClick={() => onNavigateToMenu('all')}
                 className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
@@ -549,69 +641,77 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </button>
             </div>
 
-            {/* Best Selling Rows */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {bestSellingDrinks.map((drink, idx) => (
-                <motion.div
-                  initial={{ opacity: 0, y: 15 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-30px' }}
-                  transition={{ duration: 0.25, delay: idx * 0.04 }}
-                  whileHover={{ y: -2 }}
-                  key={drink.id}
-                  id={`bestseller-item-${drink.id}`}
-                  onClick={() => onSelectDrink(drink)}
-                  className="p-3 rounded-2xl bg-[#14161f] hover:bg-[#1a1d29] border border-white/10 hover:border-amber-500/40 flex items-center justify-between gap-3 transition-all cursor-pointer group shadow-lg"
-                >
-                  {/* Left: Thumbnail */}
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-black/50 shrink-0 border border-white/10">
-                    <img
-                      src={drink.image}
-                      alt={drink.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
-                    />
-                  </div>
-
-                  {/* Middle: Title & Meta */}
-                  <div className="flex-1 min-w-0 pr-1">
-                    <h4 className="font-display font-bold text-xs sm:text-sm text-white group-hover:text-amber-300 transition-colors truncate">
-                      {drink.name}
-                    </h4>
-                    <p className="text-[10px] text-zinc-400 truncate mt-0.5">
-                      {drink.tagline}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-amber-400 flex items-center gap-0.5 font-bold">
-                        <Star className="w-2.5 h-2.5 fill-amber-400" />
-                        {formatRating(drink.rating)}
-                      </span>
-                      <span className="text-[10px] text-zinc-500">•</span>
-                      <span className="text-[10px] text-zinc-400">{drink.calories} kcal</span>
+            {/* Best Selling Rows with Dynamic AnimatePresence */}
+            <AnimatePresence mode="wait">
+              <motion.div 
+                key={`bestseller-grid-${cycleSeed}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+              >
+                {bestSellingDrinks.map((drink, idx) => (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, delay: idx * 0.04 }}
+                    whileHover={{ y: -2 }}
+                    key={drink.id}
+                    id={`bestseller-item-${drink.id}`}
+                    onClick={() => onSelectDrink(drink)}
+                    className="p-3 rounded-2xl bg-[#14161f] hover:bg-[#1a1d29] border border-white/10 hover:border-amber-500/40 flex items-center justify-between gap-3 transition-all cursor-pointer group shadow-lg"
+                  >
+                    {/* Left: Thumbnail */}
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-black/50 shrink-0 border border-white/10">
+                      <img
+                        src={drink.image}
+                        alt={drink.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
                     </div>
-                  </div>
 
-                  {/* Right: Price & Amber Square '+' Button */}
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <span className="font-extrabold text-xs sm:text-sm text-white">
-                      {formatCurrency(drink.price)}
-                    </span>
-                    <motion.button
-                      whileTap={{ scale: 0.85 }}
-                      whileHover={{ scale: 1.08 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onQuickAdd(drink);
-                      }}
-                      className="w-8 h-8 rounded-xl bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center font-bold shadow-md"
-                      title="Add to order"
-                    >
-                      <Plus className="w-4 h-4 stroke-[3]" />
-                    </motion.button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                    {/* Middle: Title & Meta */}
+                    <div className="flex-1 min-w-0 pr-1">
+                      <h4 className="font-display font-bold text-xs sm:text-sm text-white group-hover:text-amber-300 transition-colors truncate">
+                        {drink.name}
+                      </h4>
+                      <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                        {drink.tagline}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-amber-400 flex items-center gap-0.5 font-bold">
+                          <Star className="w-2.5 h-2.5 fill-amber-400" />
+                          {formatRating(drink.rating)}
+                        </span>
+                        <span className="text-[10px] text-zinc-500">•</span>
+                        <span className="text-[10px] text-zinc-400">{drink.calories} kcal</span>
+                      </div>
+                    </div>
+
+                    {/* Right: Price & Amber Square '+' Button */}
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <span className="font-extrabold text-xs sm:text-sm text-white">
+                        {formatCurrency(drink.price)}
+                      </span>
+                      <motion.button
+                        whileTap={{ scale: 0.85 }}
+                        whileHover={{ scale: 1.08 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onQuickAdd(drink);
+                        }}
+                        className="w-8 h-8 rounded-xl bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center font-bold shadow-md"
+                        title="Add to order"
+                      >
+                        <Plus className="w-4 h-4 stroke-[3]" />
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </AnimatePresence>
           </motion.div>
         </>
       )}
