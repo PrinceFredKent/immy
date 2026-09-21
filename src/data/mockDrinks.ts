@@ -11,7 +11,7 @@ export const CATEGORIES: { id: DrinkCategory; name: string; iconName: string; ba
   { id: 'all', name: 'All Drinks', iconName: 'Sparkles', badge: 'All' },
   { id: 'hot-coffee', name: 'Hot Coffee', iconName: 'Coffee', badge: 'Artisan' },
   { id: 'blended-juices', name: 'Blended Juices', iconName: 'Citrus', badge: 'Fresh Natural' },
-  { id: 'smoothies-mixtures', name: 'Frappuccino & Smoothies', iconName: 'CupSoda', badge: 'Creamy Mix' },
+  { id: 'smoothies-mixtures', name: 'Smoothies & Mixes', iconName: 'CupSoda', badge: 'Creamy Mix' },
   { id: 'bongo-kitiribita', name: 'Bongo & Dairy', iconName: 'Milk', badge: 'Local Special' },
   { id: 'cakes-pastries', name: 'Desserts & Cakes', iconName: 'Cake', badge: 'Flavored' },
   { id: 'energy-bottled-juices', name: 'Energy & Bottled', iconName: 'Zap', badge: 'Chilled' },

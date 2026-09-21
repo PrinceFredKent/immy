@@ -103,7 +103,10 @@ SECURITY DEFINER
 STABLE
 AS $$
   SELECT COALESCE(
+    -- Primary check: profiles table row
     (SELECT role = 'admin' FROM public.profiles WHERE id = auth.uid()),
+    -- Fallback: JWT user_metadata set at sign-up / sign-in
+    ((auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'),
     false
   );
 $$;
@@ -123,8 +126,10 @@ DROP POLICY IF EXISTS "profiles_insert_own"   ON public.profiles;
 DROP POLICY IF EXISTS "profiles_update_own"   ON public.profiles;
 DROP POLICY IF EXISTS "profiles_delete_admin" ON public.profiles;
 
+-- Allow authenticated users to insert their own profile row,
+-- AND allow service-role/trigger context (auth.uid() IS NULL) for handle_new_user trigger.
 CREATE POLICY "profiles_read_own"     ON public.profiles FOR SELECT USING (auth.uid() = id OR public.is_admin());
-CREATE POLICY "profiles_insert_own"   ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "profiles_insert_own"   ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id OR auth.uid() IS NULL);
 CREATE POLICY "profiles_update_own"   ON public.profiles FOR UPDATE USING (auth.uid() = id OR public.is_admin());
 CREATE POLICY "profiles_delete_admin" ON public.profiles FOR DELETE USING (public.is_admin());
 
@@ -255,3 +260,15 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =====================================================
+-- 10. ONE-TIME FIX: Ensure existing admin accounts have role = 'admin'
+-- Run this block if admin emails already existed before the trigger was set up.
+-- =====================================================
+UPDATE public.profiles
+SET role = 'admin'
+WHERE id IN (
+  SELECT id FROM auth.users
+  WHERE email IN ('admin@immydrinks.com', 'princefredkent@gmail.com')
+)
+AND role != 'admin';

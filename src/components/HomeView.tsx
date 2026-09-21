@@ -208,17 +208,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </span>
 
                 <h2 className="font-display font-extrabold text-base sm:text-2xl md:text-3xl text-white tracking-tight leading-snug">
-                  {activeHero.highlightWord && activeHero.title.includes(activeHero.highlightWord) ? (
-                    <>
-                      {activeHero.title.split(activeHero.highlightWord)[0]}
-                      <span className="text-amber-400 underline decoration-amber-400/40 underline-offset-4">
-                        {activeHero.highlightWord}
-                      </span>
-                      {activeHero.title.split(activeHero.highlightWord)[1]}
-                    </>
-                  ) : (
-                    activeHero.title
-                  )}
+                  {activeHero.highlightWord ? (() => {
+                    const escaped = activeHero.highlightWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const parts = activeHero.title.split(new RegExp(`(${escaped})`, 'i'));
+                    return parts.length > 1 ? (
+                      <>
+                        {parts[0]}
+                        <span className="text-amber-400 underline decoration-amber-400/40 underline-offset-4">
+                          {parts[1]}
+                        </span>
+                        {parts[2]}
+                      </>
+                    ) : activeHero.title;
+                  })() : activeHero.title}
                 </h2>
 
                 <p className="text-[11px] sm:text-xs text-zinc-300 line-clamp-1">

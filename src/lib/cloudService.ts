@@ -512,14 +512,31 @@ export async function cloudSignIn(emailOrPhone: string, password: string): Promi
   }
 
   const fbUser = data.user;
-  const role = await loadUserRoleFromCloud(fbUser.id);
+
+  // Determine if this is an admin email
+  const ADMIN_EMAILS = ['admin@immydrinks.com', 'princefredkent@gmail.com'];
+  const isAdminEmail = ADMIN_EMAILS.includes((fbUser.email || '').toLowerCase());
+  const resolvedRole: 'customer' | 'admin' = isAdminEmail ? 'admin' : 'customer';
+
+  // Upsert the profile row to ensure role is correct — fixes cases where the
+  // row was created before the DB trigger was set up (role defaulted to 'customer').
+  try {
+    await supabase.from('profiles').upsert({
+      id: fbUser.id,
+      name: fbUser.user_metadata?.name || fbUser.email?.split('@')[0] || 'User',
+      phone: cleanId.includes('@') ? '' : cleanId,
+      role: resolvedRole,
+    }, { onConflict: 'id' });
+  } catch (upsertErr) {
+    console.warn('Profile upsert on sign-in failed (non-fatal):', upsertErr);
+  }
 
   return {
     id: fbUser.id,
     name: fbUser.user_metadata?.name || fbUser.email?.split('@')[0] || 'User',
     email: fbUser.email || email,
     phone: cleanId.includes('@') ? '' : cleanId,
-    role,
+    role: resolvedRole,
     isLoggedIn: true,
     authProvider: 'email',
   };
@@ -562,6 +579,10 @@ export async function cloudSignUp(
     const err: any = new Error(error.message);
     if (error.message.includes('already registered') || error.message.includes('already exists')) {
       err.code = 'auth/email-already-in-use';
+    } else if (error.message.includes('rate limit') || error.message.includes('too many') || error.message.includes('rate_limit')) {
+      // Rate limit hit — account likely already exists, just sign in
+      err.code = 'auth/email-already-in-use';
+      err.message = 'An account with this email already exists. Please use Sign In instead.';
     } else if (error.message.includes('password')) {
       err.code = 'auth/weak-password';
     } else {
@@ -571,6 +592,45 @@ export async function cloudSignUp(
   }
 
   const fbUser = data.user!;
+
+  // Explicitly create the profile row right after sign-up.
+  // The handle_new_user trigger should do this automatically, but we do it
+  // here as a reliable fallback in case the trigger didn't fire or failed.
+  // We use a short retry loop because the auth session might not be ready instantly.
+  const profilePayload = {
+    id: fbUser.id,
+    name: name.trim(),
+    phone: phoneInput?.trim() || (!cleanId.includes('@') ? cleanId : ''),
+    role,
+    saved_addresses: JSON.stringify([{
+      id: 'addr-home',
+      label: 'My Address',
+      street: '',
+      city: 'Kampala, Uganda',
+      isDefault: true,
+    }]),
+    saved_payment_methods: JSON.stringify([{
+      id: 'pm-cash',
+      type: 'cash',
+      label: 'Cash on Delivery',
+      subtitle: 'Pay with cash upon delivery',
+      isDefault: true,
+      comingSoon: false,
+    }]),
+  };
+
+  // Attempt upsert up to 3 times with a short delay (session propagation lag)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profilePayload, { onConflict: 'id' });
+      if (!profileError) break;
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 500));
+    } catch (_) {
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 500));
+    }
+  }
 
   return {
     id: fbUser.id,

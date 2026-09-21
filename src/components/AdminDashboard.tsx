@@ -1498,7 +1498,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onChange={(e) => setSlideHighlightWord(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
                   />
-                  <p className="text-[10px] text-zinc-500 mt-1">Underlined with amber highlight color</p>
+                  {slideHighlightWord.trim() ? (
+                    slideTitle.toLowerCase().includes(slideHighlightWord.trim().toLowerCase()) ? (
+                      <p className="text-[10px] text-emerald-400 mt-1">✓ Found in title — will show in amber</p>
+                    ) : (
+                      <p className="text-[10px] text-red-400 mt-1">⚠ Word not in title — add it to the headline above</p>
+                    )
+                  ) : (
+                    <p className="text-[10px] text-zinc-500 mt-1">Underlined with amber highlight color</p>
+                  )}
                 </div>
 
                 <div>

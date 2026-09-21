@@ -108,41 +108,11 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [currentTab]);
 
-  // Dynamic Drinks Inventory with Persistent Cloud & Local Storage (All items stay persistent)
-  const [drinks, setDrinks] = useState<Drink[]>(() => {
-    const saved = safeLocalStorage.getItem('immy_drinks_inventory');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-        // fallback
-      }
-    }
-    return [];
-  });
+  // Dynamic Drinks Inventory — cloud is the sole source of truth, no localStorage caching
+  const [drinks, setDrinks] = useState<Drink[]>([]);
 
-  useEffect(() => {
-    safeLocalStorage.setItem('immy_drinks_inventory', JSON.stringify(drinks));
-  }, [drinks]);
-
-  // Dynamic Hero Banner Slides
-  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(() => {
-    const saved = safeLocalStorage.getItem('immy_hero_slides');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {
-        // fallback
-      }
-    }
-    return DEFAULT_HERO_SLIDES;
-  });
-
-  useEffect(() => {
-    safeLocalStorage.setItem('immy_hero_slides', JSON.stringify(heroSlides));
-  }, [heroSlides]);
+  // Dynamic Hero Banner Slides — cloud is the sole source of truth
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
 
   // Real-time Cloud Subscriptions
   useEffect(() => {
@@ -156,11 +126,7 @@ export default function App() {
     });
 
     const unsubDrinks = subscribeToDrinks((cloudDrinks) => {
-      setDrinks((prev) => {
-        const cloudIds = new Set((cloudDrinks || []).map((d) => d.id));
-        const pendingLocal = prev.filter((d) => !cloudIds.has(d.id) && d.id.startsWith('drink-'));
-        return [...pendingLocal, ...(cloudDrinks || [])];
-      });
+      setDrinks(cloudDrinks || []);
     });
 
     const unsubOrders = subscribeToOrders((cloudOrders) => {
@@ -444,8 +410,11 @@ export default function App() {
     try {
       const created = await createDrinkInCloud(optimisticDrink);
       setDrinks((prev) => [created, ...prev.filter((d) => d && d.id !== drinkId)]);
-    } catch (err) {
-      console.error('Failed creating drink in Firestore cloud:', err);
+    } catch (err: any) {
+      console.error('Failed creating drink in cloud:', err);
+      // Roll back the optimistic item and notify the admin
+      setDrinks((prev) => prev.filter((d) => d && d.id !== drinkId));
+      showToast(`❌ Failed to save "${optimisticDrink.name}": ${err?.message || 'Permission denied. Ensure you are logged in as admin.'}`);
     }
   };
 
@@ -454,8 +423,9 @@ export default function App() {
     showToast(`Updated "${updatedDrink.name}" successfully! ✅`);
     try {
       await updateDrinkInCloud(updatedDrink);
-    } catch (err) {
-      console.error('Failed updating drink in Firestore cloud:', err);
+    } catch (err: any) {
+      console.error('Failed updating drink in cloud:', err);
+      showToast(`❌ Failed to update "${updatedDrink.name}": ${err?.message || 'Permission denied.'}`);
     }
   };
 
@@ -465,8 +435,9 @@ export default function App() {
     showToast(`Deleted "${drinkToDelete?.name || 'Drink'}" from menu.`);
     try {
       await deleteDrinkFromCloud(drinkId);
-    } catch (err) {
-      console.error('Failed deleting drink from Firestore cloud:', err);
+    } catch (err: any) {
+      console.error('Failed deleting drink from cloud:', err);
+      showToast(`❌ Failed to delete "${drinkToDelete?.name || 'Drink'}": ${err?.message || 'Permission denied.'}`);
     }
   };
 
