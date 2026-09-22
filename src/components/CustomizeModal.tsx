@@ -264,7 +264,7 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 50, scale: 0.97 }}
           transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-          className="relative w-full max-w-2xl max-h-[92vh] bg-[#12151d] text-white rounded-t-3xl sm:rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden z-10"
+          className="relative w-full max-w-2xl h-[92vh] sm:h-auto max-h-[92vh] bg-[#12151d] text-white rounded-t-3xl sm:rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden z-10"
         >
           
           {/* Floating Top Controls (Pinned above scroll) */}
@@ -317,9 +317,9 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
           {/* Scrollable Content Container */}
           <div className="flex-1 overflow-y-auto no-scrollbar pb-4">
             
-            {/* Hero Image Viewport (Compact height to ensure flavor chips remain in immediate screen view) */}
+            {/* Hero Image Viewport (Expansive height so tall glasses and full bottles are fully visible without cut-off) */}
             <div 
-              className="relative photo-card-overlay w-full h-36 xs:h-44 sm:h-48 md:h-52 max-h-[28vh] bg-black overflow-hidden cursor-pointer group select-none shrink-0"
+              className="relative w-full h-[48vh] sm:h-[52vh] min-h-[320px] sm:min-h-[400px] bg-zinc-950 overflow-hidden cursor-pointer group select-none shrink-0"
               onClick={() => setIsFullScreenPhoto(true)}
             >
               <AnimatePresence mode="wait">
@@ -327,15 +327,15 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                   key={activeDisplayImage}
                   src={activeDisplayImage}
                   alt={currentFlavorObj ? `${drink.name} - ${currentFlavorObj.name}` : drink.name}
-                  initial={{ opacity: 0, scale: 1.05 }}
+                  initial={{ opacity: 0, scale: 1.03 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
                   className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                   referrerPolicy="no-referrer"
                 />
               </AnimatePresence>
-              <div className="absolute inset-0 modal-gradient-overlay pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#12151d] via-transparent to-black/35 pointer-events-none" />
 
               {/* Flavor indicator badge floating over hero image when a flavor is actively picked */}
               {availableFlavors.length > 0 && currentFlavorObj && (
@@ -378,7 +378,7 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
             <div className="px-4 sm:px-6 pt-3 space-y-3.5">
               
               {/* Title, Tagline & Base Price Header */}
-              <div>
+              <div className="border-b border-white/5 pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="font-display font-black text-xl sm:text-2xl text-white tracking-tight leading-tight">
@@ -400,7 +400,7 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                   </div>
                 </div>
 
-                {/* Description Dropdown Extender (Closed by default) */}
+                {/* Description Dropdown Extender */}
                 {drink.description && (
                   <div className="pt-2">
                     <button
@@ -411,16 +411,17 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                       <span>{isDescriptionOpen ? 'Hide description' : 'View description & notes'}</span>
                       <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${isDescriptionOpen ? 'rotate-180 text-amber-400' : ''}`} />
                     </button>
-                    <AnimatePresence>
+                    <AnimatePresence initial={false}>
                       {isDescriptionOpen && (
                         <motion.div
+                          key="desc-dropdown-content"
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2 }}
+                          transition={{ duration: 0.25, ease: 'easeInOut' }}
                           className="overflow-hidden pt-2 space-y-2"
                         >
-                          <p className="text-xs text-zinc-400 leading-relaxed">
+                          <p className="text-xs text-zinc-300 leading-relaxed">
                             {drink.description}
                           </p>
                           {drink.flavorNotes && drink.flavorNotes.length > 0 && (
@@ -606,14 +607,13 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                 />
               </div>
 
-              {/* You might also like / Paired Drinks */}
+              {/* You might also like / Paired Drinks (Located further down in scroll view) */}
               {relatedDrinks.length > 0 && onSelectDrink && (
-                <div className="space-y-2.5 pt-2 border-t border-white/10">
+                <div className="space-y-2.5 pt-5 mt-3 border-t border-white/10">
                   <div className="flex items-center justify-between">
                     <h4 className="font-display font-bold text-xs uppercase tracking-wider text-zinc-400">
                       Frequently Paired Together
                     </h4>
-                    <span className="text-[10px] text-amber-400 font-semibold">Finger scroll & tap</span>
                   </div>
 
                   <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-2 snap-x scroll-smooth cursor-grab active:cursor-grabbing">
