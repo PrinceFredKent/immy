@@ -15,7 +15,7 @@ import {
   X, 
   Power, 
   ArrowLeft,
-  Coffee,
+  Leaf,
   AlertCircle,
   Sparkles,
   RefreshCw,
@@ -28,10 +28,11 @@ import {
   Layers,
   Image as ImageIcon
 } from 'lucide-react';
-import { Drink, Order, DeliveryStatus, DrinkCategory, HeroSlide } from '../types';
+import { Drink, Order, DeliveryStatus, DrinkCategory, HeroSlide, DrinkFlavor } from '../types';
 import { CATEGORIES } from '../data/mockDrinks';
 import { DEFAULT_HERO_SLIDES } from '../data/mockHeroSlides';
 import { formatCurrency } from '../utils/formatters';
+import { uploadDrinkImage } from '../lib/storageService';
 
 interface AdminDashboardProps {
   drinks: Drink[];
@@ -65,15 +66,74 @@ const PRESET_DRINK_IMAGES = [
   { label: 'Yoghurt Shake', url: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?auto=format&fit=crop&w=800&q=80' },
   { label: 'Energy / Bottled Juice', url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80' },
   { label: 'Bakery Cake', url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80' },
-  { label: 'Iced Coffee', url: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=800&q=80' },
+  { label: 'Artisan Hibiscus Tea', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=800&q=80' },
 ];
 
 const PRESET_HERO_IMAGES = [
-  { label: 'Artisan Coffee Brew', url: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=900&q=85' },
+  { label: 'Artisan Botanical Teas', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=900&q=85' },
   { label: 'Fresh Juices & Mango', url: 'https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=900&q=85' },
   { label: 'Creamy Smoothies & Bongo', url: 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=900&q=85' },
-  { label: 'Iced Coffee Delight', url: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?auto=format&fit=crop&w=900&q=85' },
+  { label: 'Spiced Iced Chai', url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=900&q=85' },
   { label: 'Passion Fruit Mix', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=85' },
+];
+
+export const FLAVOR_IMAGE_PRESETS = [
+  { label: 'Pepsi / Cola', url: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Coca-Cola', url: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Mirinda Orange', url: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Mirinda Fruity / Red', url: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Mountain Dew', url: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=200&q=80' },
+  { label: '7UP Crisp Lemon', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Fanta Orange', url: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Mango Delight', url: 'https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Tropical Passion', url: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Crisp Apple', url: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Tropical Blend', url: 'https://images.unsplash.com/photo-1534353473418-4cfa6c56fd38?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Vanilla Sponge Cake', url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Rich Chocolate Cake', url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Red Velvet Cake', url: 'https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=200&q=80' },
+  { label: 'Forest Berry Cake', url: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=200&q=80' },
+];
+
+export const FLAVOR_COLLECTION_PRESETS: { label: string; flavors: DrinkFlavor[] }[] = [
+  {
+    label: 'Soda Flavors',
+    flavors: [
+      { id: 'soda-pepsi', name: 'Pepsi Cola', image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'soda-mirinda-orange', name: 'Mirinda Orange', image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'soda-mirinda-fruity', name: 'Mirinda Fruity', image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'soda-mountain-dew', name: 'Mountain Dew', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'soda-7up', name: '7UP Crisp Lemon', image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'soda-coca-cola', name: 'Coca-Cola Classic', image: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'soda-fanta-orange', name: 'Fanta Orange', image: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=200&q=80', inStock: true },
+    ]
+  },
+  {
+    label: 'Minute Maid Flavors',
+    flavors: [
+      { id: 'mm-mango', name: 'Mango Delight', image: 'https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'mm-tropical', name: 'Tropical Blend', image: 'https://images.unsplash.com/photo-1534353473418-4cfa6c56fd38?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'mm-apple', name: 'Apple Breeze', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'mm-orange', name: 'Orange Pulpy', image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80', inStock: true },
+    ]
+  },
+  {
+    label: 'Oner Juice Flavors',
+    flavors: [
+      { id: 'oner-mango', name: 'Rich Mango', image: 'https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'oner-passion', name: 'Tropical Passion', image: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'oner-apple', name: 'Crisp Apple', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=200&q=80', inStock: true },
+    ]
+  },
+  {
+    label: 'Bakery Cake Flavors',
+    flavors: [
+      { id: 'cake-vanilla', name: 'Vanilla Sponge', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'cake-chocolate', name: 'Rich Chocolate', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'cake-redvelvet', name: 'Red Velvet', image: 'https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=200&q=80', inStock: true },
+      { id: 'cake-fruit', name: 'Forest Berry Fruit', image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=200&q=80', inStock: true },
+    ]
+  }
 ];
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -116,6 +176,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [formImage, setFormImage] = useState(PRESET_DRINK_IMAGES[0].url);
   const [formCalories, setFormCalories] = useState<number>(110);
   const [formFlavorNotes, setFormFlavorNotes] = useState<string>('Fresh, Natural, Chilled');
+  const [formFlavors, setFormFlavors] = useState<DrinkFlavor[]>([]);
+  const [flavorImagePickerIndex, setFlavorImagePickerIndex] = useState<number | null>(null);
 
   // System wipe states
   const [confirmWipeText, setConfirmWipeText] = useState('');
@@ -181,7 +243,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [slideSubtitle, setSlideSubtitle] = useState('');
   const [slideCtaText, setSlideCtaText] = useState('Order Now');
   const [slideTag, setSlideTag] = useState('Artisan Brews');
-  const [slideCategoryTarget, setSlideCategoryTarget] = useState<DrinkCategory>('hot-coffee');
+  const [slideCategoryTarget, setSlideCategoryTarget] = useState<DrinkCategory>('artisan-teas');
   const [slideImage, setSlideImage] = useState(PRESET_HERO_IMAGES[0].url);
   const [slideIsActive, setSlideIsActive] = useState(true);
 
@@ -193,12 +255,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const openCreateSlideModal = () => {
     setEditingSlide(null);
-    setSlideTitle('Your perfect coffee, delivered to you');
+    setSlideTitle('Your perfect tea, delivered to you');
     setSlideHighlightWord('delivered');
-    setSlideSubtitle('Crafted fresh by master baristas.');
+    setSlideSubtitle('Crafted fresh with handpicked herbs.');
     setSlideCtaText('Order Now');
     setSlideTag('Special Offer');
-    setSlideCategoryTarget('hot-coffee');
+    setSlideCategoryTarget('artisan-teas');
     setSlideImage(PRESET_HERO_IMAGES[0].url);
     setSlideIsActive(true);
     setIsSlideModalOpen(true);
@@ -292,6 +354,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setFormImage(PRESET_DRINK_IMAGES[0].url);
     setFormCalories(110);
     setFormFlavorNotes('Fresh, Natural, Chilled');
+    setFormFlavors([]);
+    setFlavorImagePickerIndex(null);
     setIsDrinkModalOpen(true);
   };
 
@@ -307,6 +371,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setFormImage(drink.image);
     setFormCalories(drink.calories || 110);
     setFormFlavorNotes((drink.flavorNotes || []).join(', ') || 'Fresh, Natural');
+    setFormFlavors(drink.flavors && Array.isArray(drink.flavors) ? JSON.parse(JSON.stringify(drink.flavors)) : []);
+    setFlavorImagePickerIndex(null);
     setIsDrinkModalOpen(true);
   };
 
@@ -324,6 +390,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const parsedLarge = formPriceLarge !== '' ? Number(formPriceLarge) : undefined;
     const largePrice = typeof parsedLarge === 'number' && !isNaN(parsedLarge) && parsedLarge > 0 ? parsedLarge : undefined;
 
+    // Clean up empty flavors
+    const cleanedFlavors = formFlavors
+      .map((fl) => ({
+        ...fl,
+        name: (fl.name || '').trim(),
+        image: (fl.image || '').trim(),
+        inStock: fl.inStock !== false
+      }))
+      .filter((fl) => fl.name.length > 0);
+
     if (editingDrink) {
       // Update existing
       onUpdateDrink({
@@ -340,6 +416,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         reviewsCount: typeof editingDrink.reviewsCount === 'number' ? editingDrink.reviewsCount : 1,
         prepTimeMinutes: typeof editingDrink.prepTimeMinutes === 'number' ? editingDrink.prepTimeMinutes : 3,
         flavorNotes: notesArray.length > 0 ? notesArray : ['Natural', 'Chilled'],
+        flavors: cleanedFlavors.length > 0 ? cleanedFlavors : undefined,
       });
     } else {
       // Create new
@@ -355,8 +432,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         rating: 5.0,
         reviewsCount: 1,
         isPopular: false,
+        isNew: true,
+        createdAt: new Date().toISOString(),
         flavorNotes: notesArray.length > 0 ? notesArray : ['Natural', 'Chilled'],
         prepTimeMinutes: 3,
+        flavors: cleanedFlavors.length > 0 ? cleanedFlavors : undefined,
         defaultCustomization: {
           size: 'standard',
           ice: 'Regular Ice (70%)',
@@ -508,7 +588,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 : 'bg-white/5 text-zinc-400 hover:text-white'
             }`}
           >
-            <Coffee className="w-4 h-4" />
+            <Leaf className="w-4 h-4" />
             <span>Manage Drinks (CRUD & Menu)</span>
           </button>
 
@@ -574,6 +654,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   placeholder="Search by order ID or address..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
                   className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -598,7 +683,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* Orders List */}
             {filteredOrders.length === 0 ? (
               <div className="text-center py-16 bg-[#13161c] rounded-3xl border border-white/10">
-                <Coffee className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+                <Leaf className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
                 <h4 className="text-base font-bold text-white">No matching orders found</h4>
                 <p className="text-xs text-zinc-400 mt-1">Orders placed by customers will appear in real-time here.</p>
               </div>
@@ -641,14 +726,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <img
                             src={item.drink.image}
                             alt={item.drink.name}
+                            referrerPolicy="no-referrer"
                             className="w-10 h-10 rounded-lg object-cover"
                           />
                           <div className="flex-1 min-w-0">
                             <h5 className="text-xs font-bold text-white truncate">
                               {item.quantity}x {item.drink.name}
                             </h5>
-                            <p className="text-[10px] text-amber-300 font-medium">
-                              Size: {item.customization?.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}
+                            <p className="text-[10px] text-amber-300 font-medium flex items-center gap-1 flex-wrap">
+                              <span>Size: {item.customization?.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}</span>
+                              {item.customization?.selectedFlavor && (
+                                <>
+                                  <span className="text-zinc-500">•</span>
+                                  <span className="text-white font-semibold inline-flex items-center gap-1">
+                                    {item.customization?.selectedFlavorImage && (
+                                      <img
+                                        src={item.customization.selectedFlavorImage}
+                                        alt={item.customization.selectedFlavor}
+                                        referrerPolicy="no-referrer"
+                                        className="w-3.5 h-3.5 rounded object-cover ring-1 ring-white/20"
+                                      />
+                                    )}
+                                    <span>{item.customization.selectedFlavor}</span>
+                                  </span>
+                                </>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -735,6 +837,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   placeholder="Search menu drinks to edit or delete..."
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
                   className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
                 />
               </div>
@@ -795,10 +902,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <p className="text-[11px] text-zinc-400 line-clamp-2 mt-0.5">
                         {drink.description}
                       </p>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center flex-wrap gap-1.5 mt-2">
                         <span className="px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 text-[10px] font-medium capitalize">
                           {drink.category.replace(/-/g, ' ')}
                         </span>
+                        {drink.flavors && drink.flavors.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] font-semibold flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>{drink.flavors.length} Flavors</span>
+                          </span>
+                        )}
                         {drink.calories && (
                           <span className="text-[10px] text-zinc-500">
                             {drink.calories} kcal
@@ -935,7 +1048,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             <div className="p-5 rounded-2xl bg-[#13161c] border border-white/10 space-y-3">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Coffee className="w-4 h-4 text-amber-400" />
+                <Leaf className="w-4 h-4 text-amber-400" />
                 <span>Direct Kitchen Contacts</span>
               </h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
@@ -1321,7 +1434,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 >
                   <option value="blended-juices">Blended Juices</option>
                   <option value="smoothies-mixtures">Smoothies & Mixtures</option>
-                  <option value="hot-coffee">Hot Coffee & Artisan Brews</option>
+                  <option value="artisan-teas">Artisan Botanical Teas</option>
                   <option value="bongo-kitiribita">Bongo & Kitiribita</option>
                   <option value="energy-bottled-juices">Oner, Maid & Energy</option>
                   <option value="water-sodas">Water & Sodas</option>
@@ -1389,6 +1502,280 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-500"
                   />
                 </div>
+              </div>
+
+              {/* ================= FLAVOR CHOICES WITH INDIVIDUAL PHOTOS ================= */}
+              <div className="space-y-3 pt-3 border-t border-white/10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="block font-bold text-sm text-white flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      <span>Flavor Options & Individual Small Photos</span>
+                    </label>
+                    <p className="text-[11px] text-zinc-400">
+                      Configure selectable flavors with individual images (for Sodas, Minute Maid, Oner Juice, Cakes, etc.).
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newId = `fl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+                      setFormFlavors((prev) => [
+                        ...prev,
+                        {
+                          id: newId,
+                          name: '',
+                          image: FLAVOR_IMAGE_PRESETS[0].url,
+                          inStock: true,
+                        },
+                      ]);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 self-start shrink-0 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Flavor</span>
+                  </button>
+                </div>
+
+                {/* Preset loader quick buttons */}
+                <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/5">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 mr-1">
+                    Quick Presets:
+                  </span>
+                  {FLAVOR_COLLECTION_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setFormFlavors(JSON.parse(JSON.stringify(preset.flavors)))}
+                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-500/20 hover:border-amber-500/30 border border-white/10 text-[11px] font-semibold text-zinc-300 hover:text-amber-300 transition-all"
+                    >
+                      ⚡ {preset.label}
+                    </button>
+                  ))}
+                  {formFlavors.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setFormFlavors([])}
+                      className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-[11px] font-semibold text-rose-300 transition-all ml-auto"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {/* Flavor list items */}
+                {formFlavors.length === 0 ? (
+                  <div className="p-3.5 rounded-xl border border-dashed border-white/10 text-center bg-white/[0.01]">
+                    <p className="text-xs text-zinc-400">No specific flavor options configured for this drink.</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">
+                      Customers will order this standard drink, or click &ldquo;Add Flavor&rdquo; / select a quick preset above.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                    {formFlavors.map((flavor, idx) => (
+                      <div
+                        key={flavor.id || idx}
+                        className="p-3 rounded-xl bg-white/[0.04] border border-white/10 space-y-2.5"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {/* Mini Thumbnail with Photo Trigger */}
+                          <div className="relative group shrink-0">
+                            {flavor.image ? (
+                              <img
+                                src={flavor.image}
+                                alt={flavor.name || 'Flavor'}
+                                referrerPolicy="no-referrer"
+                                className="w-10 h-10 rounded-xl object-cover ring-1 ring-white/20 bg-black"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold text-amber-400">
+                                <ImageIcon className="w-5 h-5 text-zinc-400" />
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setFlavorImagePickerIndex(flavorImagePickerIndex === idx ? null : idx)}
+                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 rounded-xl flex items-center justify-center text-white transition-opacity text-[9px] font-bold"
+                              title="Change Photo"
+                            >
+                              Edit
+                            </button>
+                          </div>
+
+                          {/* Flavor Name Input */}
+                          <div className="flex-1 min-w-0">
+                            <input
+                              type="text"
+                              value={flavor.name}
+                              onChange={(e) => {
+                                const newName = e.target.value;
+                                setFormFlavors((prev) =>
+                                  prev.map((f, i) => (i === idx ? { ...f, name: newName } : f))
+                                );
+                              }}
+                              placeholder="e.g. Pepsi Cola, Rich Mango, Vanilla Sponge"
+                              className="w-full px-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+
+                          {/* In Stock toggle button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormFlavors((prev) =>
+                                prev.map((f, i) =>
+                                  i === idx ? { ...f, inStock: f.inStock === false ? true : false } : f
+                                )
+                              );
+                            }}
+                            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold shrink-0 transition-colors border ${
+                              flavor.inStock !== false
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                            }`}
+                          >
+                            {flavor.inStock !== false ? 'In Stock' : 'Sold Out'}
+                          </button>
+
+                          {/* Toggle Image Picker */}
+                          <button
+                            type="button"
+                            onClick={() => setFlavorImagePickerIndex(flavorImagePickerIndex === idx ? null : idx)}
+                            className={`p-1.5 rounded-lg border text-xs font-semibold shrink-0 transition-colors ${
+                              flavorImagePickerIndex === idx
+                                ? 'bg-amber-500 text-black border-amber-500'
+                                : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10'
+                            }`}
+                            title="Choose image or photo"
+                          >
+                            <ImageIcon className="w-4 h-4" />
+                          </button>
+
+                          {/* Delete Flavor */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormFlavors((prev) => prev.filter((_, i) => i !== idx));
+                              if (flavorImagePickerIndex === idx) setFlavorImagePickerIndex(null);
+                            }}
+                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 shrink-0 transition-colors"
+                            title="Remove Flavor"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Expandable Image Chooser for this Flavor */}
+                        {flavorImagePickerIndex === idx && (
+                          <div className="p-3 rounded-xl bg-black/60 border border-amber-500/30 space-y-2.5 animate-in fade-in slide-in-from-top-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                                <ImageIcon className="w-3.5 h-3.5" />
+                                <span>Choose Flavor Photo for &quot;{flavor.name || 'Flavor'}&quot;</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setFlavorImagePickerIndex(null)}
+                                className="text-zinc-400 hover:text-white text-xs"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            {/* Direct URL input & File upload */}
+                            <div>
+                              <label className="block text-[10px] text-zinc-400 font-semibold mb-1">
+                                Image URL or Upload File:
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="url"
+                                  value={flavor.image || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFormFlavors((prev) =>
+                                      prev.map((f, i) => (i === idx ? { ...f, image: val } : f))
+                                    );
+                                  }}
+                                  placeholder="https://... image link"
+                                  className="flex-1 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500"
+                                />
+
+                                <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-white border border-white/15 flex items-center gap-1 shrink-0">
+                                  <span>Upload</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      try {
+                                        const url = await uploadDrinkImage(file);
+                                        setFormFlavors((prev) =>
+                                          prev.map((f, i) => (i === idx ? { ...f, image: url } : f))
+                                        );
+                                      } catch (err) {
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                          if (typeof ev.target?.result === 'string') {
+                                            const dataUrl = ev.target.result;
+                                            setFormFlavors((prev) =>
+                                              prev.map((f, i) => (i === idx ? { ...f, image: dataUrl } : f))
+                                            );
+                                          }
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+
+                            {/* Preset Quick Images */}
+                            <div>
+                              <span className="block text-[10px] text-zinc-400 font-semibold mb-1">
+                                Pick from High-Quality Flavor Presets:
+                              </span>
+                              <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                                {FLAVOR_IMAGE_PRESETS.map((preset) => (
+                                  <button
+                                    key={preset.label}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormFlavors((prev) =>
+                                        prev.map((f, i) => (i === idx ? { ...f, image: preset.url } : f))
+                                      );
+                                    }}
+                                    className={`relative group rounded-lg overflow-hidden border p-1 transition-all text-left ${
+                                      flavor.image === preset.url
+                                        ? 'border-amber-400 bg-amber-500/10 ring-1 ring-amber-400/50'
+                                        : 'border-white/10 bg-white/5 hover:border-white/30'
+                                    }`}
+                                    title={preset.label}
+                                  >
+                                    <img
+                                      src={preset.url}
+                                      alt={preset.label}
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-8 object-cover rounded"
+                                    />
+                                    <span className="text-[9px] line-clamp-1 text-zinc-300 group-hover:text-white mt-1 font-medium">
+                                      {preset.label}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
@@ -1479,7 +1866,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Your perfect coffee, delivered to you"
+                  placeholder="e.g. Your perfect tea, delivered to you"
                   value={slideTitle}
                   onChange={(e) => setSlideTitle(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
@@ -1529,7 +1916,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Crafted fresh by master baristas."
+                  placeholder="e.g. Crafted fresh with organic botanical herbs."
                   value={slideSubtitle}
                   onChange={(e) => setSlideSubtitle(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"

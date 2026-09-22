@@ -17,7 +17,7 @@ import {
   Compass,
   PackageCheck,
   Truck,
-  Coffee,
+  Leaf,
   CheckCircle2,
   Receipt,
   Eye,
@@ -524,7 +524,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       Your cart is empty
                     </h3>
                     <p className="text-xs text-zinc-400 max-w-xs mb-6">
-                      Explore our handcrafted drinks menu to order blended juices, smoothies, shakes, and iced coffees.
+                      Explore our handcrafted drinks menu to order blended juices, smoothies, shakes, and spiced teas.
                     </p>
                     <button
                       id="browse-menu-empty-cart-btn"
@@ -562,8 +562,24 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                             {/* Customization specs breakdown */}
                             <div className="text-[11px] text-zinc-400 space-y-0.5 mt-0.5">
-                              <div className="capitalize font-medium text-amber-300/90">
-                                Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}
+                              <div className="capitalize font-medium text-amber-300/90 flex items-center gap-1.5 flex-wrap">
+                                <span>Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}</span>
+                                {item.customization.selectedFlavor && (
+                                  <>
+                                    <span className="text-zinc-500">•</span>
+                                    <span className="text-amber-400 font-bold inline-flex items-center gap-1">
+                                      {item.customization.selectedFlavorImage && (
+                                        <img
+                                          src={item.customization.selectedFlavorImage}
+                                          alt={item.customization.selectedFlavor}
+                                          referrerPolicy="no-referrer"
+                                          className="w-3.5 h-3.5 rounded object-cover ring-1 ring-amber-400/40"
+                                        />
+                                      )}
+                                      <span>Flavor: {item.customization.selectedFlavor}</span>
+                                    </span>
+                                  </>
+                                )}
                               </div>
                               {item.customization.specialInstructions && (
                                 <div className="text-zinc-400 italic truncate text-[10px]">

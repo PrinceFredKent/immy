@@ -8,6 +8,19 @@ export const formatRating = (rating?: number | null): string => {
   return num.toFixed(1);
 };
 
+export const isDrinkNew = (drink?: { createdAt?: string; isNew?: boolean } | null): boolean => {
+  if (!drink) return false;
+  if (drink.createdAt) {
+    const createdTime = new Date(drink.createdAt).getTime();
+    if (!isNaN(createdTime)) {
+      const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+      return (Date.now() - createdTime) <= threeDaysMs;
+    }
+  }
+  // If isNew is set without a createdAt, default to respecting isNew
+  return Boolean(drink.isNew);
+};
+
 export const calculateItemPrice = (
   basePrice: number = 0,
   size: 'standard' | 'regular' | 'large' | string = 'standard',

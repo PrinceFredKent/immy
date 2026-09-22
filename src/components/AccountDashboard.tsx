@@ -13,7 +13,7 @@ import {
   Trash2, 
   Compass,
   Gift,
-  Coffee,
+  Leaf,
   CheckCircle2,
   Heart,
   Bell,
@@ -564,6 +564,7 @@ export const AccountDashboard: React.FC<AccountDashboardProps> = ({
                                 </div>
                                 <p className="text-[11px] text-amber-300 capitalize font-medium">
                                   Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}
+                                  {item.customization.selectedFlavor && ` • Flavor: ${item.customization.selectedFlavor}`}
                                 </p>
                               </div>
                             </div>
@@ -715,7 +716,7 @@ export const AccountDashboard: React.FC<AccountDashboardProps> = ({
                 </span>
                 <h4 className="font-display font-bold text-white text-sm">Secret Menu Previews</h4>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Early seasonal tasting access to limited-edition botanical blends and micro-lot coffees.
+                  Early seasonal tasting access to limited-edition botanical blends and aromatic spiced teas.
                 </p>
               </div>
             </div>
@@ -726,7 +727,7 @@ export const AccountDashboard: React.FC<AccountDashboardProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-display font-bold text-base text-white flex items-center gap-2">
-                  <Coffee className="w-4 h-4 text-amber-400" />
+                  <Leaf className="w-4 h-4 text-amber-400" />
                   Immy 10-Drink Stamp Card
                 </h3>
                 <p className="text-xs text-zinc-400">
@@ -759,7 +760,7 @@ export const AccountDashboard: React.FC<AccountDashboardProps> = ({
                     ) : isFinal ? (
                       <Gift className="w-5 h-5 text-emerald-400" />
                     ) : (
-                      <Coffee className="w-4 h-4" />
+                      <Leaf className="w-4 h-4" />
                     )}
                     <span className="text-[9px] font-bold mt-0.5">#{index + 1}</span>
                   </div>
@@ -843,14 +844,14 @@ export const AccountDashboard: React.FC<AccountDashboardProps> = ({
                 {
                   key: 'orderUpdates' as const,
                   title: 'Order Confirmation Alerts',
-                  desc: 'Instant notice when your payment is verified and order sent to baristas.',
+                  desc: 'Instant notice when your payment is verified and order is sent to the kitchen.',
                   icon: CheckCircle2,
                 },
                 {
                   key: 'brewingAlerts' as const,
                   title: 'Brewing & Preparation Progress',
-                  desc: 'Notice when baristas begin pulling espresso and steeping fresh pearls.',
-                  icon: Coffee,
+                  desc: 'Notice when we begin blending your drinks and preparing fresh toppings.',
+                  icon: Leaf,
                 },
                 {
                   key: 'outForDelivery' as const,

@@ -53,12 +53,21 @@ function drinkToRow(drink: Drink) {
     is_out_of_stock: drink.isOutOfStock ?? false,
     flavor_notes: drink.flavorNotes,
     prep_time_minutes: drink.prepTimeMinutes,
-    default_customization: drink.defaultCustomization,
+    default_customization: {
+      ...drink.defaultCustomization,
+      flavors: drink.flavors,
+    },
   };
 }
 
 /** Convert a DB row to a Drink TypeScript object */
 function rowToDrink(row: any): Drink {
+  const extractedFlavors = Array.isArray(row.flavors)
+    ? row.flavors
+    : Array.isArray(row.default_customization?.flavors)
+    ? row.default_customization.flavors
+    : undefined;
+
   return {
     id: row.id,
     name: row.name || 'Refreshing Beverage',
@@ -86,6 +95,7 @@ function rowToDrink(row: any): Drink {
       selectedAddOns: [],
       specialInstructions: '',
     },
+    flavors: extractedFlavors,
   };
 }
 

@@ -9,7 +9,7 @@ import {
   Share2, 
   Sparkles,
   ChevronRight,
-  Coffee,
+  Leaf,
   XCircle,
   AlertTriangle,
   RotateCcw
@@ -363,7 +363,7 @@ export const LiveTracker: React.FC<LiveTrackerProps> = ({
       <div className="bg-[#151922] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-display font-bold text-base text-white flex items-center gap-2">
-            <Coffee className="w-4 h-4 text-amber-400" />
+            <Leaf className="w-4 h-4 text-amber-400" />
             Items in This Delivery ({activeOrder.items.length})
           </h3>
           <span className="font-bold text-amber-400 text-sm">
@@ -385,8 +385,14 @@ export const LiveTracker: React.FC<LiveTrackerProps> = ({
                   <h4 className="font-semibold text-sm text-white">
                     {item.quantity}x {item.drink.name}
                   </h4>
-                  <p className="text-xs text-amber-300 font-medium capitalize mt-0.5">
-                    Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}
+                  <p className="text-xs text-amber-300 font-medium capitalize mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    <span>Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}</span>
+                    {item.customization.selectedFlavor && (
+                      <>
+                        <span className="text-zinc-500">•</span>
+                        <span className="text-white font-bold bg-amber-500/20 px-1.5 py-0.5 rounded text-[10px]">Flavor: {item.customization.selectedFlavor}</span>
+                      </>
+                    )}
                   </p>
                   {item.customization.specialInstructions && (
                     <p className="text-[11px] text-amber-400/90 italic mt-0.5">

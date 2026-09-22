@@ -273,4 +273,14 @@ html.light .modal-gradient-overlay {
   background: linear-gradient(to top, #ffffff 0%, rgba(255, 255, 255, 0.98) 15%, rgba(255, 255, 255, 0.55) 45%, transparent 100%) !important;
 }
 
+/* Prevent background scrolling when there's an active overlay/modal */
+body.overflow-hidden,
+body.lock-scroll,
+html:has(.fixed.inset-0.z-50) body,
+body:has(.fixed.inset-0.z-50),
+html:has(.fixed.inset-0.z-60) body,
+body:has(.fixed.inset-0.z-60) {
+  overflow: hidden !important;
+}
+
 

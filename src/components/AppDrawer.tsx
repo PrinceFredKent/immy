@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
-  Coffee,
+  Leaf,
   Clock, 
   Heart, 
   User, 
@@ -123,7 +123,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
 
                 {[
                   { id: 'home', label: 'Home Feed', icon: Sparkles },
-                  { id: 'menu', label: 'All Drinks & Catalog', icon: Coffee },
+                  { id: 'menu', label: 'All Drinks & Catalog', icon: Leaf },
                   { id: 'orders', label: 'My Orders & History', icon: Clock },
                   { id: 'favorites', label: 'Saved Favorites', icon: Heart, count: userProfile.favoriteDrinkIds?.length },
                   { id: 'tracker', label: 'Live Delivery Tracker', icon: Compass, badge: hasActiveOrder ? 'Active' : undefined },

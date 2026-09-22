@@ -3,13 +3,13 @@ import { HeroSlide } from '../types';
 export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
   {
     id: 'slide-1',
-    title: 'Your perfect coffee, delivered to you',
-    highlightWord: 'delivered',
-    subtitle: 'Crafted fresh by master baristas.',
+    title: 'Your perfect tea, brewed to perfection',
+    highlightWord: 'brewed',
+    subtitle: 'Infused with local spices and organic honey.',
     ctaText: 'Order Now',
-    image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=900&q=85',
-    tag: 'Artisan Brews',
-    categoryTarget: 'hot-coffee',
+    image: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=900&q=85',
+    tag: 'Artisan Teas',
+    categoryTarget: 'artisan-teas',
     isActive: true,
   },
   {

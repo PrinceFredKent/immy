@@ -6,24 +6,15 @@ import {
   Minus, 
   Sparkles, 
   Check, 
-  Flame, 
-  Droplet, 
-  Snowflake,
-  Clock,
   Heart,
   Star,
-  ChevronRight,
-  Coffee,
-  Maximize2,
-  ChevronDown
+  Maximize2
 } from 'lucide-react';
 import { 
   Drink, 
   DrinkSize, 
-  IceLevel, 
-  SweetnessLevel, 
-  MilkOption, 
-  CustomizationOptions 
+  CustomizationOptions,
+  DrinkFlavor
 } from '../types';
 import { AVAILABLE_ADD_ONS } from '../data/mockDrinks';
 import { calculateItemPrice, formatCurrency, formatRating } from '../utils/formatters';
@@ -59,14 +50,75 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [isFullScreenPhoto, setIsFullScreenPhoto] = useState(false);
+  const [selectedFlavor, setSelectedFlavor] = useState<string>('');
+  const [flavorError, setFlavorError] = useState(false);
 
-  // Reset states when current drink changes
+  // Compute available flavors with small individual images
+  const availableFlavors: DrinkFlavor[] = useMemo(() => {
+    if (!drink) return [];
+    if (drink.flavors && drink.flavors.length > 0) {
+      return drink.flavors;
+    }
+    const id = drink.id.toLowerCase();
+    const name = drink.name.toLowerCase();
+    
+    if (id.includes('soda') || name.includes('soda')) {
+      return [
+        { id: 'soda-pepsi', name: 'Pepsi Cola', image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-mirinda-orange', name: 'Mirinda Orange', image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-mirinda-fruity', name: 'Mirinda Fruity', image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-mountain-dew', name: 'Mountain Dew', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-7up', name: '7UP Crisp Lemon', image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-coca-cola', name: 'Coca-Cola Classic', image: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-fanta-orange', name: 'Fanta Orange', image: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=200&q=80', inStock: true },
+      ];
+    }
+    if (id.includes('minute-maid') || name.includes('minute-maid') || name.includes('maid')) {
+      return [
+        { id: 'mm-mango', name: 'Mango Delight', image: 'https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'mm-tropical', name: 'Tropical Blend', image: 'https://images.unsplash.com/photo-1534353473418-4cfa6c56fd38?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'mm-apple', name: 'Apple Breeze', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'mm-orange', name: 'Orange Pulpy', image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80', inStock: true },
+      ];
+    }
+    if (id.includes('oner') || name.includes('oner')) {
+      return [
+        { id: 'oner-mango', name: 'Rich Mango', image: 'https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'oner-passion', name: 'Tropical Passion', image: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'oner-apple', name: 'Crisp Apple', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=200&q=80', inStock: true },
+      ];
+    }
+    if (id.includes('cake') || name.includes('cake')) {
+      return [
+        { id: 'cake-vanilla', name: 'Vanilla Sponge', image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'cake-chocolate', name: 'Rich Chocolate', image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'cake-redvelvet', name: 'Red Velvet', image: 'https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'cake-fruit', name: 'Forest Berry Fruit', image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=200&q=80', inStock: true },
+      ];
+    }
+    return [];
+  }, [drink]);
+
+  // Compute selected flavor object & active display image
+  const currentFlavorObj = useMemo(() => {
+    if (!selectedFlavor) return null;
+    return availableFlavors.find((f) => f.name === selectedFlavor) || null;
+  }, [selectedFlavor, availableFlavors]);
+
+  const activeDisplayImage = (currentFlavorObj && currentFlavorObj.image) 
+    ? currentFlavorObj.image 
+    : (drink?.image || '');
+
+  // Reset states when current drink changes - NO flavor selected by default
   useEffect(() => {
     if (drink) {
       const hasLarge = typeof drink.priceLarge === 'number' && drink.priceLarge > 0;
       setSize(hasLarge && drink?.defaultCustomization?.size === 'large' ? 'large' : 'standard');
       setSpecialInstructions('');
       setQuantity(1);
+      // Explicit requirement: none of the chips must be selected by default
+      setSelectedFlavor('');
+      setFlavorError(false);
     }
   }, [drink?.id]);
 
@@ -91,6 +143,15 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
 
   const handleConfirm = () => {
     if (!drink) return;
+
+    // If item has flavors and none was selected, prompt the user
+    if (availableFlavors.length > 0 && !selectedFlavor) {
+      setFlavorError(true);
+      return;
+    }
+
+    const selectedFlavorObj = availableFlavors.find((f) => f.name === selectedFlavor);
+
     onAddToCart(
       drink,
       {
@@ -100,6 +161,8 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
         milk: 'No Milk / Black',
         selectedAddOns: [],
         specialInstructions: specialInstructions.trim() || undefined,
+        selectedFlavor: selectedFlavor || undefined,
+        selectedFlavorImage: selectedFlavorObj?.image || undefined,
       },
       quantity
     );
@@ -152,20 +215,26 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
               </div>
 
               <div className="flex-1 flex items-center justify-center p-2 relative">
-                <motion.img
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', damping: 25 }}
-                  src={drink.image}
-                  alt={drink.name}
-                  className="max-h-[80vh] max-w-[95vw] sm:max-w-2xl w-auto h-auto object-contain rounded-3xl shadow-2xl ring-1 ring-white/10"
-                  referrerPolicy="no-referrer"
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={activeDisplayImage}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    transition={{ type: 'spring', damping: 25 }}
+                    src={activeDisplayImage}
+                    alt={currentFlavorObj ? `${drink.name} - ${currentFlavorObj.name}` : drink.name}
+                    className="max-h-[80vh] max-w-[95vw] sm:max-w-2xl w-auto h-auto object-contain rounded-3xl shadow-2xl ring-1 ring-white/10"
+                    referrerPolicy="no-referrer"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </AnimatePresence>
               </div>
 
               <div className="flex items-center justify-between text-xs text-zinc-400 z-10 pt-2 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
-                <p className="max-w-md truncate text-zinc-300 font-medium">{drink.tagline}</p>
+                <p className="max-w-md truncate text-zinc-300 font-medium">
+                  {currentFlavorObj ? `${drink.name} (${currentFlavorObj.name})` : drink.tagline}
+                </p>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setIsFullScreenPhoto(false)}
@@ -189,22 +258,12 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
           
           {/* Floating Top Controls (Pinned above scroll) */}
           <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-20 pointer-events-none">
-            {/* Left: Category Badge & Full Photo Trigger */}
+            {/* Left: Category Badge */}
             <div className="flex items-center gap-1.5 pointer-events-auto">
               <span className="px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-amber-300 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase border border-white/15 shadow-md flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-amber-400" />
                 {drink.category.replace('-', ' ')}
               </span>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.92 }}
-                onClick={() => setIsFullScreenPhoto(true)}
-                className="px-2.5 py-1 rounded-full bg-black/75 hover:bg-black/90 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-semibold border border-white/15 shadow-md flex items-center gap-1 transition-colors"
-                title="Expand full photo view"
-              >
-                <Maximize2 className="w-3 h-3 text-amber-400" />
-                <span className="hidden xs:inline">Full Photo</span>
-              </motion.button>
             </div>
 
             {/* Right: Favorite Toggle & Close */}
@@ -247,39 +306,59 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
           {/* Scrollable Content Container */}
           <div className="flex-1 overflow-y-auto no-scrollbar pb-6">
             
-            {/* Hero Image Viewport (Responsive & proportional height) */}
+            {/* Hero Image Viewport (Responsive & proportional height with smooth animated transitions) */}
             <div 
-              className="relative photo-card-overlay w-full h-[50vh] sm:h-[55vh] md:h-[60vh] bg-black/90 overflow-hidden cursor-pointer group"
+              className="relative photo-card-overlay w-full h-[50vh] sm:h-[55vh] md:h-[60vh] bg-black overflow-hidden cursor-pointer group select-none"
               onClick={() => setIsFullScreenPhoto(true)}
             >
-              <img
-                src={drink.image}
-                alt={drink.name}
-                className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
-                referrerPolicy="no-referrer"
-              />
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={activeDisplayImage}
+                  src={activeDisplayImage}
+                  alt={currentFlavorObj ? `${drink.name} - ${currentFlavorObj.name}` : drink.name}
+                  initial={{ opacity: 0, scale: 1.05 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                  referrerPolicy="no-referrer"
+                />
+              </AnimatePresence>
               <div className="absolute inset-0 modal-gradient-overlay pointer-events-none" />
+
+              {/* Flavor indicator badge floating over hero image when a flavor is actively picked */}
+              {availableFlavors.length > 0 && currentFlavorObj && (
+                <div className="absolute top-14 left-3 z-10 pointer-events-none">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentFlavorObj.name}
+                      initial={{ opacity: 0, y: -8, scale: 0.92 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.92 }}
+                      transition={{ duration: 0.25 }}
+                      className="px-3 py-1.5 rounded-xl bg-black/85 backdrop-blur-md border border-amber-500/50 text-amber-300 text-[11px] font-bold flex items-center gap-1.5 shadow-2xl"
+                    >
+                      {currentFlavorObj.image && (
+                        <img
+                          src={currentFlavorObj.image}
+                          alt={currentFlavorObj.name}
+                          referrerPolicy="no-referrer"
+                          className="w-4 h-4 rounded-md object-cover ring-1 ring-amber-400"
+                        />
+                      )}
+                      <span>{currentFlavorObj.name}</span>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+              )}
               
               {/* Badges bar on bottom of hero */}
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-[11px] font-bold text-amber-400 flex items-center gap-1 shadow-md">
+                  <span className="px-2.5 py-0.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-[11px] font-bold text-amber-400 flex items-center gap-1 shadow-md">
                     <Star className="w-3 h-3 fill-amber-400" />
                     {formatRating(drink.rating)}
                   </span>
-                  <span className="px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-[11px] text-zinc-100 font-medium flex items-center gap-1 shadow-md">
-                    <Flame className="w-3 h-3 text-orange-400" />
-                    {drink.calories} kcal
-                  </span>
-                  <span className="px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-[11px] text-zinc-100 font-medium hidden xs:flex items-center gap-1 shadow-md">
-                    <Clock className="w-3 h-3 text-amber-400" />
-                    {drink.prepTimeMinutes} min prep
-                  </span>
-                </div>
-
-                <div className="px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-[10px] text-zinc-200 flex items-center gap-1 shadow-md">
-                  <Maximize2 className="w-3 h-3 text-amber-400" />
-                  <span>Tap to enlarge</span>
                 </div>
               </div>
             </div>
@@ -404,6 +483,107 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                   </>
                 )}
               </div>
+
+              {/* Dynamic Flavor Selector chips for Soda, Minute Maid, Oner */}
+              {availableFlavors.length > 0 && (
+                <div className={`space-y-3 pt-1 rounded-2xl p-3 transition-colors ${
+                  flavorError && !selectedFlavor
+                    ? 'bg-rose-500/10 border border-rose-500/30'
+                    : 'bg-transparent'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <label className="font-display font-bold text-sm text-white flex items-center gap-2">
+                      <span>Select Flavor Choice</span>
+                    </label>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                      flavorError && !selectedFlavor
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/30 animate-pulse'
+                        : selectedFlavor
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                    }`}>
+                      {selectedFlavor ? 'Selected' : 'Required'}
+                    </span>
+                  </div>
+
+                  {flavorError && !selectedFlavor && (
+                    <motion.p 
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-xs text-rose-300 font-medium flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                      Please choose your favorite flavor below to preview and add to order.
+                    </motion.p>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {availableFlavors.map((flavor) => {
+                      const isSelected = selectedFlavor === flavor.name;
+                      const isOutOfStock = flavor.inStock === false;
+
+                      return (
+                        <motion.button
+                          whileTap={isOutOfStock ? undefined : { scale: 0.96 }}
+                          whileHover={isOutOfStock ? undefined : { scale: 1.02 }}
+                          type="button"
+                          key={flavor.id || flavor.name}
+                          disabled={isOutOfStock}
+                          onClick={() => {
+                            if (isOutOfStock) return;
+                            setFlavorError(false);
+                            // Set selected flavor (or toggle if clicked again)
+                            setSelectedFlavor((prev) => (prev === flavor.name ? '' : flavor.name));
+                          }}
+                          className={`flex items-center gap-2.5 p-2 rounded-xl text-left text-xs font-semibold transition-all border ${
+                            isOutOfStock
+                              ? 'bg-zinc-900/40 border-white/5 text-zinc-600 cursor-not-allowed opacity-60'
+                              : isSelected
+                              ? 'bg-amber-500/20 border-amber-500 text-white shadow-lg shadow-amber-500/15 ring-2 ring-amber-500/50'
+                              : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 hover:border-white/20'
+                          }`}
+                        >
+                          {/* Small Individual Flavor Image with rounded styling */}
+                          {flavor.image ? (
+                            <img
+                              src={flavor.image}
+                              alt={flavor.name}
+                              referrerPolicy="no-referrer"
+                              className={`w-9 h-9 rounded-lg object-cover ring-1 shrink-0 bg-black/40 transition-transform ${
+                                isSelected ? 'ring-amber-400 scale-105' : 'ring-white/15'
+                              }`}
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-[11px] font-bold text-amber-400">
+                              {flavor.name.charAt(0)}
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <p className={`truncate text-xs ${isSelected ? 'font-bold text-amber-300' : 'text-zinc-200'}`}>
+                              {flavor.name}
+                            </p>
+                            {isOutOfStock ? (
+                              <span className="text-[9px] text-rose-400 font-medium block">Out of stock</span>
+                            ) : isSelected ? (
+                              <span className="text-[9px] text-amber-400 font-medium flex items-center gap-0.5">
+                                <Check className="w-2.5 h-2.5" /> Active photo
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-zinc-400 block truncate">
+                                Tap to switch
+                              </span>
+                            )}
+                          </div>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Special Barista Instructions */}
               <div className="space-y-2">

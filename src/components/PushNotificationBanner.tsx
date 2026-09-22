@@ -6,7 +6,7 @@ import {
   ChevronRight, 
   Compass, 
   CheckCircle2, 
-  Coffee, 
+  Leaf, 
   Bike, 
   PackageCheck,
   Sparkles
@@ -48,7 +48,7 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
       case 'placed':
         return <CheckCircle2 className="w-5 h-5 text-emerald-400" />;
       case 'brewing':
-        return <Coffee className="w-5 h-5 text-amber-400" />;
+        return <Leaf className="w-5 h-5 text-amber-400" />;
       case 'packaged':
         return <PackageCheck className="w-5 h-5 text-blue-400" />;
       case 'on_the_way':

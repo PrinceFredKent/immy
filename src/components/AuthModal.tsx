@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, 
   Lock, 
-  Coffee, 
+  Leaf, 
   AlertCircle, 
   X,
   ArrowRight,
@@ -204,7 +204,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   whileHover={{ rotate: 10, scale: 1.05 }}
                   className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shadow-xl shadow-amber-500/25"
                 >
-                  <Coffee className="w-6 h-6" />
+                  <Leaf className="w-6 h-6" />
                 </motion.div>
                 <div>
                   <h3 className="font-display font-bold text-xl text-white tracking-tight flex items-center gap-1.5">

@@ -24,7 +24,7 @@ export const LOYALTY_REWARD_OPTIONS: LoyaltyRewardOption[] = [
   {
     id: 'rew-5-off',
     title: '$5.00 Off Any Order',
-    description: 'Save five dollars on any signature coffee, cold brew, or refreshing fruit mocktail.',
+    description: 'Save five dollars on any signature juice, spiced tea, or refreshing fruit mocktail.',
     pointsCost: 500,
     discountAmount: 5.00,
     discountType: 'fixed',
@@ -39,12 +39,12 @@ export const LOYALTY_REWARD_OPTIONS: LoyaltyRewardOption[] = [
     discountAmount: 8.50,
     discountType: 'free_drink',
     badge: 'Fan Favorite',
-    iconName: 'Coffee',
+    iconName: 'Sparkles',
   },
   {
     id: 'rew-10-off',
     title: '$10.00 Off Any Order',
-    description: 'Generous ten-dollar discount for group gatherings, team coffee rounds, or bulk drink cravings.',
+    description: 'Generous ten-dollar discount for group gatherings, team catering rounds, or bulk drink cravings.',
     pointsCost: 900,
     discountAmount: 10.00,
     discountType: 'fixed',

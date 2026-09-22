@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, 
-  Coffee, 
-  Citrus, 
+  Leaf, 
+  Citrus,  
   CupSoda, 
   Milk, 
   Cake, 
@@ -25,7 +25,7 @@ import {
 import { Drink, DrinkCategory, UserProfile, HeroSlide } from '../types';
 import { CATEGORIES } from '../data/mockDrinks';
 import { DEFAULT_HERO_SLIDES } from '../data/mockHeroSlides';
-import { formatCurrency, formatRating } from '../utils/formatters';
+import { formatCurrency, formatRating, isDrinkNew } from '../utils/formatters';
 
 interface HomeViewProps {
   drinks: Drink[];
@@ -150,7 +150,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const pool = available.length >= 6 ? available : drinks;
 
     // 1. Popular/High-Rated pool with deterministic cycle shuffle
-    const popularCandidates = pool.filter((d) => d.isPopular || d.rating >= 4.8 || d.isNew);
+    const popularCandidates = pool.filter((d) => d.isPopular || d.rating >= 4.8 || isDrinkNew(d));
     const popularSource = popularCandidates.length >= 4 ? popularCandidates : pool;
     const shuffledPopular = shuffleWithSeed(popularSource, cycleSeed);
     const selectedPopular = shuffledPopular.slice(0, Math.min(6, pool.length));
@@ -179,8 +179,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   // Helper to render category icon
   const getCategoryIcon = (iconName: string) => {
     switch (iconName) {
-      case 'Coffee':
-        return <Coffee className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
+      case 'Leaf':
+        return <Leaf className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
       case 'Citrus':
         return <Citrus className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />;
       case 'CupSoda':
@@ -685,8 +685,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           <Star className="w-2.5 h-2.5 fill-amber-400" />
                           {formatRating(drink.rating)}
                         </span>
-                        <span className="text-[10px] text-zinc-500">•</span>
-                        <span className="text-[10px] text-zinc-400">{drink.calories} kcal</span>
                       </div>
                     </div>
 

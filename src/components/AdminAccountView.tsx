@@ -6,7 +6,7 @@ import {
   Plus, 
   Edit2, 
   Trash2, 
-  Coffee, 
+  Leaf, 
   TrendingUp, 
   Clock, 
   CheckCircle2, 
@@ -55,7 +55,7 @@ const PRESET_DRINK_IMAGES = [
   { label: 'Yoghurt Shake', url: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?auto=format&fit=crop&w=800&q=80' },
   { label: 'Energy / Bottled Juice', url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80' },
   { label: 'Bakery Cake', url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80' },
-  { label: 'Iced Coffee', url: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=800&q=80' },
+  { label: 'Artisan Hibiscus Tea', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=800&q=80' },
 ];
 
 export const AdminAccountView: React.FC<AdminAccountViewProps> = ({
@@ -264,7 +264,7 @@ export const AdminAccountView: React.FC<AdminAccountViewProps> = ({
               : 'bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10'
           }`}
         >
-          <Coffee className="w-4 h-4" />
+          <Leaf className="w-4 h-4" />
           <span>Edit Menu & Stock ({drinks.length})</span>
         </button>
 
@@ -306,6 +306,11 @@ export const AdminAccountView: React.FC<AdminAccountViewProps> = ({
                 placeholder="Search menu inventory..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
                 className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
               />
             </div>
@@ -562,7 +567,7 @@ export const AdminAccountView: React.FC<AdminAccountViewProps> = ({
             
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
-                <Coffee className="w-5 h-5 text-amber-400" />
+                <Leaf className="w-5 h-5 text-amber-400" />
                 <h3 className="text-lg font-bold text-white">
                   {editingDrink ? `Edit "${editingDrink.name}"` : 'Add New Drink To Menu'}
                 </h3>

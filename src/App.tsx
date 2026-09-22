@@ -8,7 +8,6 @@ import {
   Clock, 
   ShieldCheck, 
   ArrowUpDown, 
-  Coffee,
   CheckCircle2,
   X,
   Compass,
@@ -331,6 +330,19 @@ export default function App() {
     }
   }, [activeOrder]);
 
+  // Lock body scroll when any major overlay is open
+  useEffect(() => {
+    const hasOverlay = isDrawerOpen || isCartOpen || !!customizingDrink || !!viewingReceiptOrder || isAuthModalOpen;
+    if (hasOverlay) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [isDrawerOpen, isCartOpen, customizingDrink, viewingReceiptOrder, isAuthModalOpen]);
+
   // HERO SLIDES CRUD HANDLERS
   const handleCreateHeroSlide = (newSlide: Omit<HeroSlide, 'id'>) => {
     createHeroSlideInCloud(newSlide)
@@ -547,6 +559,11 @@ export default function App() {
 
     setCart((prev) => [...prev, newItem]);
     showToast(`Added ${quantity}x ${drink.name} to order!`);
+
+    // Tactile feedback on mobile devices
+    if (typeof window !== 'undefined' && window.navigator && typeof window.navigator.vibrate === 'function') {
+      window.navigator.vibrate(50);
+    }
   };
 
   const handleQuickAdd = (drink: Drink) => {
@@ -700,6 +717,11 @@ export default function App() {
     // Transition immediately to live tracker
     setCurrentTab('tracker');
     showToast(`Order #${orderNum} placed! +${pointsEarned} Immy Points earned!`);
+
+    // Tactile feedback on mobile devices for checkout success
+    if (typeof window !== 'undefined' && window.navigator && typeof window.navigator.vibrate === 'function') {
+      window.navigator.vibrate([100, 50, 100]);
+    }
   };
 
   // Demo order generator for instant test
@@ -1269,6 +1291,11 @@ export default function App() {
                         placeholder="Search juices, smoothies, bongo, rock boom, water, cakes..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
                         className="w-full pl-10 pr-28 py-2.5 sm:py-3 rounded-2xl bg-white/5 border border-white/10 text-xs sm:text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500 transition-colors shadow-inner"
                       />
 
@@ -1530,7 +1557,7 @@ export default function App() {
                       </>
                     ) : (
                       <>
-                        <Coffee className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+                        <Leaf className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
                         <h3 className="font-display font-bold text-lg text-white">
                           No drinks match your filter
                         </h3>

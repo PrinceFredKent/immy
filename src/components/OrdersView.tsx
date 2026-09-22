@@ -211,6 +211,11 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
             placeholder="Search customer name, phone number (e.g. 0752619129), or order number..."
             value={adminSearch}
             onChange={(e) => setAdminSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
             className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-amber-500 transition-colors"
           />
         </div>
@@ -356,7 +361,8 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                                       {it.quantity}x {it.drink.name}
                                     </span>
                                     <span className="text-[10px] text-amber-300 ml-1.5 capitalize">
-                                      ({it.customization.size === 'large' ? '500mls' : '400mls'})
+                                      ({it.customization.size === 'large' ? '500mls' : '400mls'}
+                                      {it.customization.selectedFlavor ? `, ${it.customization.selectedFlavor}` : ''})
                                     </span>
                                     {it.customization.specialInstructions && (
                                       <p className="text-[10px] text-zinc-400 italic">
@@ -582,8 +588,14 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
                           <p className="font-bold text-white text-xs sm:text-sm">
                             {item.quantity}x {item.drink.name}
                           </p>
-                          <p className="text-[11px] text-amber-300 capitalize font-medium mt-0.5">
-                            Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}
+                          <p className="text-[11px] text-amber-300 capitalize font-medium mt-0.5 flex items-center gap-1.5 flex-wrap">
+                            <span>Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}</span>
+                            {item.customization.selectedFlavor && (
+                              <>
+                                <span className="text-zinc-500">•</span>
+                                <span className="text-white font-semibold">Flavor: {item.customization.selectedFlavor}</span>
+                              </>
+                            )}
                           </p>
                         </div>
                       </div>

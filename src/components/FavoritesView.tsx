@@ -6,7 +6,7 @@ import {
   Sparkles, 
   Star, 
   Plus, 
-  Coffee, 
+  Leaf, 
   ChevronRight, 
   Flame, 
   ArrowRight 
@@ -59,7 +59,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
             Your Favorite Beverages
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-            Quick 1-tap reordering for your daily juice, smoothie, bongo & coffee rituals.
+            Quick 1-tap reordering for your daily juice, smoothie, bongo & tea rituals.
           </p>
         </div>
 
@@ -72,6 +72,11 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
               placeholder="Search saved drinks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
               className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
             />
           </div>
@@ -143,14 +148,11 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
                   <Heart className="w-4 h-4 fill-white" />
                 </motion.button>
 
-                {/* Rating & Calories */}
+                {/* Rating */}
                 <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
                   <span className="px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md border border-white/15 text-[11px] font-bold text-white flex items-center gap-1">
                     <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
                     {formatRating(drink.rating)}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-md border border-white/15 text-[11px] text-zinc-300">
-                    {drink.calories} kcal
                   </span>
                 </div>
               </div>

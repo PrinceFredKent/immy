@@ -112,7 +112,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <input
                 id="header-search-bar"
                 type="text"
-                placeholder="Search coffee, blended juices, smoothies, cakes..."
+                placeholder="Search blended juices, smoothies, teas, cakes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => {
@@ -124,6 +124,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   if (e.key === 'Enter') {
                     setCurrentTab('menu');
                     if (onSearchSubmit) onSearchSubmit();
+                    (e.target as HTMLInputElement).blur();
                   }
                 }}
                 className="w-full pl-9 pr-8 py-2 sm:py-2.5 rounded-full bg-white/10 hover:bg-white/15 focus:bg-white/15 border border-white/10 focus:border-amber-500 text-xs sm:text-sm text-white placeholder:text-zinc-400 focus:outline-none transition-all shadow-inner"

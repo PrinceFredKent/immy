@@ -1,6 +1,6 @@
 export type DrinkCategory = 
   | 'all' 
-  | 'hot-coffee'
+  | 'artisan-teas'
   | 'blended-juices' 
   | 'smoothies-mixtures' 
   | 'bongo-kitiribita' 
@@ -23,6 +23,13 @@ export interface AddOn {
   category: 'toppings' | 'boosters' | 'foam';
 }
 
+export interface DrinkFlavor {
+  id: string;
+  name: string;
+  image?: string; // Small individual image for each flavor
+  inStock?: boolean;
+}
+
 export interface Drink {
   id: string;
   name: string;
@@ -32,15 +39,17 @@ export interface Drink {
   priceLarge?: number; // Large Cup Price in UGX
   category: DrinkCategory;
   image: string;
-  calories: number;
+  calories?: number;
   rating: number;
   reviewsCount: number;
   isPopular?: boolean;
   isNew?: boolean;
+  createdAt?: string; // ISO date string to auto-expire 'New' badge after 3 days
   isOutOfStock?: boolean;
   flavorNotes: string[];
   prepTimeMinutes: number;
   defaultCustomization: CustomizationOptions;
+  flavors?: DrinkFlavor[]; // Admin-editable individual flavors with small images
 }
 
 export interface CustomizationOptions {
@@ -50,6 +59,8 @@ export interface CustomizationOptions {
   milk: MilkOption;
   selectedAddOns: string[];
   specialInstructions?: string;
+  selectedFlavor?: string;
+  selectedFlavorImage?: string;
 }
 
 export interface CartItem {

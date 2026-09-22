@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, CheckCircle2, Download, Printer, Coffee, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
+import { X, CheckCircle2, Download, Printer, Leaf, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
 import { Order } from '../types';
 import { formatCurrency } from '../utils/formatters';
 
@@ -24,7 +24,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         <div className="p-5 bg-[#12151c] border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
-              <Coffee className="w-4 h-4" />
+              <Leaf className="w-4 h-4" />
             </div>
             <div>
               <h3 className="font-display font-bold text-base text-white">Itemized Order Receipt</h3>
@@ -83,8 +83,24 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                     <p className="font-bold text-white text-sm">
                       {item.quantity}x {item.drink.name}
                     </p>
-                    <p className="text-[11px] text-amber-300 font-medium capitalize mt-0.5">
-                      Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}
+                    <p className="text-[11px] text-amber-300 font-medium capitalize mt-0.5 flex items-center gap-1.5 flex-wrap">
+                      <span>Size: {item.customization.size === 'large' ? 'Large (500mls)' : 'Standard (400mls)'}</span>
+                      {item.customization.selectedFlavor && (
+                        <>
+                          <span className="text-zinc-500">•</span>
+                          <span className="text-white font-semibold inline-flex items-center gap-1">
+                            {item.customization.selectedFlavorImage && (
+                              <img
+                                src={item.customization.selectedFlavorImage}
+                                alt={item.customization.selectedFlavor}
+                                referrerPolicy="no-referrer"
+                                className="w-3.5 h-3.5 rounded object-cover ring-1 ring-white/20"
+                              />
+                            )}
+                            <span>Flavor: {item.customization.selectedFlavor}</span>
+                          </span>
+                        </>
+                      )}
                     </p>
                     {item.customization.specialInstructions && (
                       <p className="text-[10px] text-zinc-400 italic">
@@ -137,7 +153,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             }}
             className="flex-1 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-lg shadow-amber-500/20"
           >
-            <Coffee className="w-3.5 h-3.5" />
+            <Leaf className="w-3.5 h-3.5" />
             <span>Re-order These Drinks</span>
           </button>
         </div>
