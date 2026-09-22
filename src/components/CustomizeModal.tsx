@@ -8,7 +8,8 @@ import {
   Check, 
   Heart,
   Star,
-  Maximize2
+  Maximize2,
+  ChevronDown
 } from 'lucide-react';
 import { 
   Drink, 
@@ -52,6 +53,7 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
   const [isFullScreenPhoto, setIsFullScreenPhoto] = useState(false);
   const [selectedFlavor, setSelectedFlavor] = useState<string>('');
   const [flavorError, setFlavorError] = useState(false);
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
 
   // Compute available flavors with small individual images
   const availableFlavors: DrinkFlavor[] = useMemo(() => {
@@ -119,6 +121,15 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
       // Explicit requirement: none of the chips must be selected by default
       setSelectedFlavor('');
       setFlavorError(false);
+
+      // For items with no flavor options/selection, extend the description by default
+      const hasFlavors = (drink.flavors && drink.flavors.length > 0) ||
+        drink.id.toLowerCase().includes('soda') || drink.name.toLowerCase().includes('soda') ||
+        drink.id.toLowerCase().includes('minute-maid') || drink.name.toLowerCase().includes('minute-maid') || drink.name.toLowerCase().includes('maid') ||
+        drink.id.toLowerCase().includes('oner') || drink.name.toLowerCase().includes('oner') ||
+        drink.id.toLowerCase().includes('cake') || drink.name.toLowerCase().includes('cake');
+
+      setIsDescriptionOpen(!hasFlavors);
     }
   }, [drink?.id]);
 
@@ -304,11 +315,11 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
           </div>
 
           {/* Scrollable Content Container */}
-          <div className="flex-1 overflow-y-auto no-scrollbar pb-6">
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-4">
             
-            {/* Hero Image Viewport (Responsive & proportional height with smooth animated transitions) */}
+            {/* Hero Image Viewport (Compact height to ensure flavor chips remain in immediate screen view) */}
             <div 
-              className="relative photo-card-overlay w-full h-[50vh] sm:h-[55vh] md:h-[60vh] bg-black overflow-hidden cursor-pointer group select-none"
+              className="relative photo-card-overlay w-full h-36 xs:h-44 sm:h-48 md:h-52 max-h-[28vh] bg-black overflow-hidden cursor-pointer group select-none shrink-0"
               onClick={() => setIsFullScreenPhoto(true)}
             >
               <AnimatePresence mode="wait">
@@ -364,145 +375,90 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
             </div>
 
             {/* Drink Details Section */}
-            <div className="px-5 sm:px-6 pt-2 space-y-6">
+            <div className="px-4 sm:px-6 pt-3 space-y-3.5">
               
-              {/* Title, Tagline & Base Price */}
-              <div className="border-b border-white/10 pb-5">
-                <div className="flex items-start justify-between gap-4">
+              {/* Title, Tagline & Base Price Header */}
+              <div>
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight">
+                    <h2 className="font-display font-black text-xl sm:text-2xl text-white tracking-tight leading-tight">
                       {drink.name}
                     </h2>
-                    <p className="text-xs sm:text-sm text-zinc-300 mt-1 font-medium leading-relaxed">
-                      {drink.tagline}
-                    </p>
+                    {drink.tagline && (
+                      <p className="text-xs text-zinc-300 font-medium mt-0.5">
+                        {drink.tagline}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-[11px] text-zinc-400 uppercase tracking-wider block font-semibold">Standard</span>
-                    <span className="font-display font-black text-xl sm:text-2xl text-amber-400">
+                    <span className="font-display font-black text-lg sm:text-xl text-amber-400">
                       {formatCurrency(drink.price)}
                     </span>
+                    {hasLargeOption && (
+                      <span className="text-[10px] text-zinc-400 block">starts at</span>
+                    )}
                   </div>
                 </div>
 
-                {/* Description */}
-                <p className="text-xs sm:text-sm text-zinc-400 mt-3 leading-relaxed">
-                  {drink.description}
-                </p>
-
-                {/* Flavor Notes / Blend chips */}
-                {drink.flavorNotes && drink.flavorNotes.length > 0 && (
-                  <div className="flex items-center gap-1.5 flex-wrap mt-3.5">
-                    <span className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider mr-1">Notes:</span>
-                    {drink.flavorNotes.map((note: string, idx: number) => (
-                      <span key={idx} className="px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-zinc-300 text-xs font-medium">
-                        {note}
-                      </span>
-                    ))}
+                {/* Description Dropdown Extender (Closed by default) */}
+                {drink.description && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsDescriptionOpen(!isDescriptionOpen)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-zinc-300 hover:text-white font-medium transition-all"
+                    >
+                      <span>{isDescriptionOpen ? 'Hide description' : 'View description & notes'}</span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${isDescriptionOpen ? 'rotate-180 text-amber-400' : ''}`} />
+                    </button>
+                    <AnimatePresence>
+                      {isDescriptionOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden pt-2 space-y-2"
+                        >
+                          <p className="text-xs text-zinc-400 leading-relaxed">
+                            {drink.description}
+                          </p>
+                          {drink.flavorNotes && drink.flavorNotes.length > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Notes:</span>
+                              {drink.flavorNotes.map((note: string, idx: number) => (
+                                <span key={idx} className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-zinc-300 text-[11px] font-medium">
+                                  {note}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
 
-              {/* Size Selector */}
-              <div className="space-y-3">
-                {hasLargeOption ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <label className="font-display font-bold text-sm text-white flex items-center gap-2">
-                        <span>Select Portion Size</span>
-                      </label>
-                      <span className="text-[11px] text-amber-400 font-semibold">
-                        {size === 'large' ? `+${formatCurrency(priceDiff)}` : 'Standard'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setSize('standard')}
-                        className={`p-3.5 rounded-2xl border text-left transition-all relative ${
-                          size === 'standard'
-                            ? 'bg-amber-500/15 border-amber-500 text-white shadow-lg shadow-amber-500/10'
-                            : 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-sm text-white">Standard Cup</span>
-                          {size === 'standard' && <Check className="w-4 h-4 text-amber-400" />}
-                        </div>
-                        <p className="text-[11px] text-zinc-400 mt-1">Regular Size</p>
-                        <span className="text-xs font-bold text-amber-400 mt-2 block">
-                          {formatCurrency(standardPrice)}
-                        </span>
-                      </motion.button>
-
-                      <motion.button
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setSize('large')}
-                        className={`p-3.5 rounded-2xl border text-left transition-all relative ${
-                          size === 'large'
-                            ? 'bg-amber-500/15 border-amber-500 text-white shadow-lg shadow-amber-500/10'
-                            : 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-sm text-white">Large Cup</span>
-                          {size === 'large' && <Check className="w-4 h-4 text-amber-400" />}
-                        </div>
-                        <p className="text-[11px] text-zinc-400 mt-1">Jumbo Serving</p>
-                        <span className="text-xs font-bold text-amber-400 mt-2 block">
-                          {formatCurrency(largePrice)}
-                        </span>
-                      </motion.button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <label className="font-display font-bold text-sm text-white flex items-center gap-2">
-                        <span>Portion Size</span>
-                      </label>
-                      <span className="text-[11px] text-zinc-400 font-medium">Standard</span>
-                    </div>
-                    <div className="p-3.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/30 text-amber-400">
-                          <Check className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="font-bold text-sm text-white block">Standard Portion</span>
-                          <span className="text-[11px] text-zinc-400">Regular serving (Single size)</span>
-                        </div>
-                      </div>
-                      <span className="text-sm font-extrabold text-amber-400">
-                        {formatCurrency(standardPrice)}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Dynamic Flavor Selector chips for Soda, Minute Maid, Oner */}
+              {/* Dynamic Flavor Selector chips in plain screen view (No scrolling needed) */}
               {availableFlavors.length > 0 && (
-                <div className={`space-y-3 pt-1 rounded-2xl p-3 transition-colors ${
+                <div className={`space-y-2 rounded-2xl p-2.5 transition-colors ${
                   flavorError && !selectedFlavor
                     ? 'bg-rose-500/10 border border-rose-500/30'
-                    : 'bg-transparent'
+                    : 'bg-white/[0.03] border border-white/10'
                 }`}>
                   <div className="flex items-center justify-between">
-                    <label className="font-display font-bold text-sm text-white flex items-center gap-2">
+                    <label className="font-display font-bold text-xs text-white flex items-center gap-1.5">
                       <span>Select Flavor Choice</span>
                     </label>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
                       flavorError && !selectedFlavor
                         ? 'bg-rose-500/20 text-rose-300 border-rose-500/30 animate-pulse'
                         : selectedFlavor
                         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                         : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                     }`}>
-                      {selectedFlavor ? 'Selected' : 'Required'}
+                      {selectedFlavor ? selectedFlavor : 'Required'}
                     </span>
                   </div>
 
@@ -513,11 +469,11 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                       className="text-xs text-rose-300 font-medium flex items-center gap-1.5"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                      Please choose your favorite flavor below to preview and add to order.
+                      Please choose a flavor chip below.
                     </motion.p>
                   )}
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
                     {availableFlavors.map((flavor) => {
                       const isSelected = selectedFlavor === flavor.name;
                       const isOutOfStock = flavor.inStock === false;
@@ -535,12 +491,12 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                             // Set selected flavor (or toggle if clicked again)
                             setSelectedFlavor((prev) => (prev === flavor.name ? '' : flavor.name));
                           }}
-                          className={`flex items-center gap-2.5 p-2 rounded-xl text-left text-xs font-semibold transition-all border ${
+                          className={`flex items-center gap-2 p-1.5 sm:p-2 rounded-xl text-left text-xs font-semibold transition-all border ${
                             isOutOfStock
                               ? 'bg-zinc-900/40 border-white/5 text-zinc-600 cursor-not-allowed opacity-60'
                               : isSelected
-                              ? 'bg-amber-500/20 border-amber-500 text-white shadow-lg shadow-amber-500/15 ring-2 ring-amber-500/50'
-                              : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 hover:border-white/20'
+                              ? 'bg-amber-500/20 border-amber-500 text-white shadow-md shadow-amber-500/15 ring-1 ring-amber-500/50'
+                              : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10'
                           }`}
                         >
                           {/* Small Individual Flavor Image with rounded styling */}
@@ -549,15 +505,15 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                               src={flavor.image}
                               alt={flavor.name}
                               referrerPolicy="no-referrer"
-                              className={`w-9 h-9 rounded-lg object-cover ring-1 shrink-0 bg-black/40 transition-transform ${
-                                isSelected ? 'ring-amber-400 scale-105' : 'ring-white/15'
+                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover ring-1 shrink-0 bg-black/40 ${
+                                isSelected ? 'ring-amber-400' : 'ring-white/15'
                               }`}
                               onError={(e) => {
                                 (e.target as HTMLElement).style.display = 'none';
                               }}
                             />
                           ) : (
-                            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-[11px] font-bold text-amber-400">
+                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-amber-400">
                               {flavor.name.charAt(0)}
                             </div>
                           )}
@@ -570,13 +526,9 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                               <span className="text-[9px] text-rose-400 font-medium block">Out of stock</span>
                             ) : isSelected ? (
                               <span className="text-[9px] text-amber-400 font-medium flex items-center gap-0.5">
-                                <Check className="w-2.5 h-2.5" /> Active photo
+                                <Check className="w-2.5 h-2.5" /> Selected
                               </span>
-                            ) : (
-                              <span className="text-[9px] text-zinc-400 block truncate">
-                                Tap to switch
-                              </span>
-                            )}
+                            ) : null}
                           </div>
                         </motion.button>
                       );
@@ -585,24 +537,78 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                 </div>
               )}
 
+              {/* Size Selector (Compact pills when large option exists) */}
+              {hasLargeOption && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="font-display font-bold text-xs text-zinc-300">
+                      Select Cup Size
+                    </label>
+                    <span className="text-[11px] text-amber-400 font-medium">
+                      {size === 'large' ? `Large (+${formatCurrency(priceDiff)})` : 'Standard'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      type="button"
+                      onClick={() => setSize('standard')}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        size === 'standard'
+                          ? 'bg-amber-500/20 border-amber-500 text-white shadow-sm ring-1 ring-amber-500/30'
+                          : 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-white">Standard Cup</span>
+                        {size === 'standard' && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                      </div>
+                      <span className="text-xs font-bold text-amber-400 mt-0.5 block">
+                        {formatCurrency(standardPrice)}
+                      </span>
+                    </motion.button>
+
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      type="button"
+                      onClick={() => setSize('large')}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        size === 'large'
+                          ? 'bg-amber-500/20 border-amber-500 text-white shadow-sm ring-1 ring-amber-500/30'
+                          : 'bg-white/5 border-white/10 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-white">Large Cup</span>
+                        {size === 'large' && <Check className="w-3.5 h-3.5 text-amber-400" />}
+                      </div>
+                      <span className="text-xs font-bold text-amber-400 mt-0.5 block">
+                        {formatCurrency(largePrice)}
+                      </span>
+                    </motion.button>
+                  </div>
+                </div>
+              )}
+
               {/* Special Barista Instructions */}
-              <div className="space-y-2">
-                <label className="font-display font-bold text-sm text-white flex items-center justify-between">
+              <div className="space-y-1.5">
+                <label className="font-display font-bold text-xs text-zinc-300 flex items-center justify-between">
                   <span>Special Preparation Notes</span>
                   <span className="text-[10px] text-zinc-400 font-normal">Optional</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Extra ginger kick, separate straw, no ice on side..."
+                  placeholder="e.g. Extra cold, separate straw..."
                   value={specialInstructions}
                   onChange={(e) => setSpecialInstructions(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
+                  className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               {/* You might also like / Paired Drinks */}
               {relatedDrinks.length > 0 && onSelectDrink && (
-                <div className="space-y-3 pt-3 border-t border-white/10">
+                <div className="space-y-2.5 pt-2 border-t border-white/10">
                   <div className="flex items-center justify-between">
                     <h4 className="font-display font-bold text-xs uppercase tracking-wider text-zinc-400">
                       Frequently Paired Together
@@ -617,7 +623,7 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                         whileTap={{ scale: 0.95 }}
                         key={relDrink.id}
                         onClick={() => onSelectDrink(relDrink)}
-                        className="shrink-0 w-32 sm:w-36 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-500/40 rounded-2xl p-2.5 transition-all text-left group snap-start"
+                        className="shrink-0 w-28 sm:w-32 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-500/40 rounded-2xl p-2 transition-all text-left group snap-start"
                       >
                         <div className="aspect-square rounded-xl overflow-hidden bg-black/40 mb-1.5">
                           <img
