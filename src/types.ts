@@ -1,6 +1,5 @@
 export type DrinkCategory = 
   | 'all' 
-  | 'artisan-teas'
   | 'blended-juices' 
   | 'smoothies-mixtures' 
   | 'bongo-kitiribita' 
@@ -28,6 +27,7 @@ export interface DrinkFlavor {
   name: string;
   image?: string; // Small individual image for each flavor
   inStock?: boolean;
+  subFlavors?: DrinkFlavor[];
 }
 
 export interface Drink {

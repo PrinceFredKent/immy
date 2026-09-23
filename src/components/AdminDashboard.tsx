@@ -66,14 +66,13 @@ const PRESET_DRINK_IMAGES = [
   { label: 'Yoghurt Shake', url: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?auto=format&fit=crop&w=800&q=80' },
   { label: 'Energy / Bottled Juice', url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80' },
   { label: 'Bakery Cake', url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=800&q=80' },
-  { label: 'Artisan Hibiscus Tea', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=800&q=80' },
+  { label: 'Iced Soda / Cola', url: 'https://images.unsplash.com/photo-1622543925917-763c34d1a86e?auto=format&fit=crop&w=800&q=80' },
 ];
 
 const PRESET_HERO_IMAGES = [
-  { label: 'Artisan Botanical Teas', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=900&q=85' },
   { label: 'Fresh Juices & Mango', url: 'https://images.unsplash.com/photo-1546173159-315724a31696?auto=format&fit=crop&w=900&q=85' },
   { label: 'Creamy Smoothies & Bongo', url: 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=900&q=85' },
-  { label: 'Spiced Iced Chai', url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=900&q=85' },
+  { label: 'Bakery Desserts & Cakes', url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=900&q=85' },
   { label: 'Passion Fruit Mix', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=900&q=85' },
 ];
 
@@ -242,8 +241,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [slideHighlightWord, setSlideHighlightWord] = useState('');
   const [slideSubtitle, setSlideSubtitle] = useState('');
   const [slideCtaText, setSlideCtaText] = useState('Order Now');
-  const [slideTag, setSlideTag] = useState('Artisan Brews');
-  const [slideCategoryTarget, setSlideCategoryTarget] = useState<DrinkCategory>('artisan-teas');
+  const [slideTag, setSlideTag] = useState('Fresh & Chilled');
+  const [slideCategoryTarget, setSlideCategoryTarget] = useState<DrinkCategory>('blended-juices');
   const [slideImage, setSlideImage] = useState(PRESET_HERO_IMAGES[0].url);
   const [slideIsActive, setSlideIsActive] = useState(true);
 
@@ -255,12 +254,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const openCreateSlideModal = () => {
     setEditingSlide(null);
-    setSlideTitle('Your perfect tea, delivered to you');
-    setSlideHighlightWord('delivered');
-    setSlideSubtitle('Crafted fresh with handpicked herbs.');
-    setSlideCtaText('Order Now');
-    setSlideTag('Special Offer');
-    setSlideCategoryTarget('artisan-teas');
+    setSlideTitle('100% Fresh Blends & Cold Juices');
+    setSlideHighlightWord('Cold Juices');
+    setSlideSubtitle('Sun-ripened Ugandan fruits, ice-chilled to perfection.');
+    setSlideCtaText('Explore Juices');
+    setSlideTag('Natural & Fresh');
+    setSlideCategoryTarget('blended-juices');
     setSlideImage(PRESET_HERO_IMAGES[0].url);
     setSlideIsActive(true);
     setIsSlideModalOpen(true);

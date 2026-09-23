@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -27,6 +27,7 @@ import {
   UserCheck,
   UserPlus,
   LogIn,
+  LogOut,
   Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -39,6 +40,7 @@ interface CartDrawerProps {
   items: CartItem[];
   onUpdateQuantity: (cartItemId: string, newQuantity: number) => void;
   onRemoveItem: (cartItemId: string) => void;
+  onClearCart?: () => void;
   deliveryAddress: DeliveryAddress;
   savedAddresses: DeliveryAddress[];
   onSelectAddress: (addr: DeliveryAddress) => void;
@@ -74,6 +76,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   items,
   onUpdateQuantity,
   onRemoveItem,
+  onClearCart,
   deliveryAddress,
   savedAddresses,
   onSelectAddress,
@@ -95,13 +98,37 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [isAutoDetected, setIsAutoDetected] = useState(true);
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+  const [isAddressConfirmed, setIsAddressConfirmed] = useState(false);
+  const [addressConfirmError, setAddressConfirmError] = useState(false);
+
+  const safeAddress: DeliveryAddress = deliveryAddress || {
+    id: 'addr-default',
+    label: 'Nasser Road (Default)',
+    street: 'Plot 42, Nasser Road',
+    unit: 'Commercial Plaza, Central Division',
+    city: 'Kampala, Uganda',
+    notes: 'Please call upon arrival',
+    isDefault: true,
+  };
 
   // Manual address form state
-  const [manualLabel, setManualLabel] = useState(deliveryAddress.label || 'Auto-Detected Delivery Spot');
-  const [manualStreet, setManualStreet] = useState(deliveryAddress.street || 'Acacia Avenue, Plot 14, Kololo');
-  const [manualUnit, setManualUnit] = useState(deliveryAddress.unit || 'Flat 2B / Gate entrance');
-  const [manualCity, setManualCity] = useState(deliveryAddress.city || 'Kampala, Uganda');
-  const [manualNotes, setManualNotes] = useState(deliveryAddress.notes || 'Call upon arrival at gate');
+  const [manualLabel, setManualLabel] = useState(safeAddress.label || 'Nasser Road (Default)');
+  const [manualStreet, setManualStreet] = useState(safeAddress.street || 'Plot 42, Nasser Road');
+  const [manualUnit, setManualUnit] = useState(safeAddress.unit || 'Commercial Plaza, Central Division');
+  const [manualCity, setManualCity] = useState(safeAddress.city || 'Kampala, Uganda');
+  const [manualNotes, setManualNotes] = useState(safeAddress.notes || 'Please call upon arrival');
+
+  useEffect(() => {
+    if (deliveryAddress) {
+      setManualLabel(deliveryAddress.label || '');
+      setManualStreet(deliveryAddress.street || '');
+      setManualUnit(deliveryAddress.unit || '');
+      setManualCity(deliveryAddress.city || 'Kampala, Uganda');
+      setManualNotes(deliveryAddress.notes || '');
+      setIsAddressConfirmed(false);
+      setAddressConfirmError(false);
+    }
+  }, [deliveryAddress]);
 
   // Subtotal & Fee calculations (UGX)
   const subtotal = items.reduce((acc, item) => acc + item.totalPrice, 0);
@@ -123,7 +150,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           const autoAddr: DeliveryAddress = {
             id: 'addr-auto-gps',
             label: 'Current GPS Location',
-            street: 'Acacia Avenue Area (GPS Fixed)',
+            street: 'Nasser Road Area (GPS Fixed)',
             unit: `Lat: ${lat}, Lon: ${lon}`,
             city: 'Kampala, Uganda',
             notes: 'Auto-detected device GPS coordinates',
@@ -141,11 +168,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           setIsAutoDetected(true);
           const fallbackAddr: DeliveryAddress = {
             id: 'addr-auto-fallback',
-            label: 'Kololo Acacia Auto-Location',
-            street: 'Plot 14 Acacia Avenue, Kololo',
-            unit: 'Main Gate / Reception',
+            label: 'Nasser Road Auto-Location',
+            street: 'Plot 42, Nasser Road',
+            unit: 'Commercial Plaza, Central Division',
             city: 'Kampala, Uganda',
-            notes: 'Auto-located near Kampala Central',
+            notes: 'Auto-located in Kampala Central',
             isDefault: true,
           };
           setManualLabel(fallbackAddr.label);
@@ -162,9 +189,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       setIsAutoDetected(true);
       const fallbackAddr: DeliveryAddress = {
         id: 'addr-auto-fallback',
-        label: 'Kololo Acacia Auto-Location',
-        street: 'Plot 14 Acacia Avenue, Kololo',
-        unit: 'Main Gate',
+        label: 'Nasser Road Auto-Location',
+        street: 'Plot 42, Nasser Road',
+        unit: 'Commercial Plaza, Central Division',
         city: 'Kampala, Uganda',
         notes: 'Auto-located in Kampala',
         isDefault: true,
@@ -185,6 +212,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     };
     onSelectAddress(updatedAddr);
     setIsEditingManual(false);
+    setIsAddressConfirmed(true);
+    setAddressConfirmError(false);
   };
 
   const handlePlaceOrder = () => {
@@ -193,6 +222,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     // If customer is browsing as a guest, prompt them to sign in or create an account
     if (isGuest) {
       setShowGuestPrompt(true);
+      return;
+    }
+
+    // Require address confirmation before placing an order
+    if (!isAddressConfirmed) {
+      setAddressConfirmError(true);
+      const box = document.getElementById('address-confirmation-box');
+      if (box) {
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
@@ -225,12 +264,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         defaultCash;
 
       const activeAddressToSubmit: DeliveryAddress = {
-        id: deliveryAddress.id || 'addr-current',
-        label: manualLabel || deliveryAddress.label || 'Delivery Address',
-        street: manualStreet || deliveryAddress.street || 'Acacia Avenue, Kololo',
-        unit: manualUnit || deliveryAddress.unit || '',
-        city: manualCity || deliveryAddress.city || 'Kampala, Uganda',
-        notes: manualNotes || deliveryAddress.notes || '',
+        id: deliveryAddress?.id || 'addr-current',
+        label: manualLabel || deliveryAddress?.label || 'Delivery Address',
+        street: manualStreet || deliveryAddress?.street || 'Plot 42, Nasser Road',
+        unit: manualUnit || deliveryAddress?.unit || '',
+        city: manualCity || deliveryAddress?.city || 'Kampala, Uganda',
+        notes: manualNotes || deliveryAddress?.notes || '',
         isDefault: true,
       };
 
@@ -301,42 +340,71 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               className="pointer-events-auto w-screen max-w-md sm:max-w-lg bg-[#13161e] border-l border-white/10 shadow-2xl flex flex-col text-white h-full"
             >
               
-              {/* Header */}
-              <div className="p-5 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  {userRole === 'admin' ? (
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="font-display font-bold text-lg sm:text-xl text-white">Pending Orders Queue</h2>
-                        <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
-                          {pendingOrders.length} pending
-                        </span>
+              {/* Top Header */}
+              <div className="p-4 sm:p-5 border-b border-white/10 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    {userRole === 'admin' ? (
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="font-display font-bold text-lg sm:text-xl text-white">Pending Orders Queue</h2>
+                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
+                            {pendingOrders.length} pending
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                          Arranged with newest incoming orders at the bottom
+                        </p>
                       </div>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">
-                        Arranged with newest incoming orders at the bottom
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2.5">
-                      <h2 className="font-display font-bold text-xl text-white">Your Cart</h2>
-                      {items.length > 0 && (
-                        <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
-                          {items.reduce((sum, item) => sum + item.quantity, 0)} items
-                        </span>
-                      )}
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex items-center gap-2.5">
+                        <h2 className="font-display font-bold text-xl text-white">Your Cart</h2>
+                        {items.length > 0 && (
+                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
+                            {items.reduce((sum, item) => sum + item.quantity, 0)} items
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {userRole !== 'admin' && items.length > 0 && onClearCart && (
+                      <button
+                        type="button"
+                        id="empty-cart-header-btn"
+                        onClick={onClearCart}
+                        className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-300 border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95"
+                        title="Empty all items in active cart"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Empty</span>
+                      </button>
+                    )}
+                    <motion.button
+                      whileTap={{ scale: 0.85 }}
+                      whileHover={{ scale: 1.1 }}
+                      id="close-cart-btn"
+                      onClick={onClose}
+                      className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white flex items-center justify-center transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </motion.button>
+                  </div>
                 </div>
 
-                <motion.button
-                  whileTap={{ scale: 0.85 }}
-                  whileHover={{ scale: 1.1 }}
-                  id="close-cart-btn"
-                  onClick={onClose}
-                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white flex items-center justify-center transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </motion.button>
+                {/* Cart clear on log out notice banner at the top header of the cart window */}
+                {userRole !== 'admin' && (
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5 text-xs">
+                    <div className="w-5 h-5 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                      <LogOut className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex-1 text-[11px] leading-snug text-zinc-300">
+                      <span className="font-semibold text-amber-300">Cart clears on log out:</span>{' '}
+                      Active cart items are emptied when you sign out, while your saved default address (Nasser Road), favorites, and order history remain safely preserved.
+                    </div>
+                  </div>
+                )}
               </div>
 
           {/* Admin Tab Switcher if admin wants to switch between Pending Queue and Test Bag */}
@@ -694,7 +762,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <div className="space-y-2 p-3 bg-black/50 rounded-xl border border-amber-500/30">
                           <input
                             type="text"
-                            placeholder="Address Label (e.g. Kololo Apartment)"
+                            placeholder="Address Label (e.g. Nasser Road Office)"
                             value={manualLabel}
                             onChange={(e) => setManualLabel(e.target.value)}
                             className="w-full px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
@@ -737,6 +805,77 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           </button>
                         </div>
                       )}
+                    </div>
+
+                    {/* Address Confirmation Step (Required before placing order) */}
+                    <div 
+                      id="address-confirmation-box"
+                      className={`p-3.5 rounded-2xl border transition-all ${
+                        isAddressConfirmed
+                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200'
+                          : addressConfirmError
+                          ? 'bg-rose-500/15 border-rose-500/50 text-rose-200 ring-2 ring-rose-500/30'
+                          : 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <button
+                          type="button"
+                          id="confirm-address-checkbox-btn"
+                          onClick={() => {
+                            setIsAddressConfirmed(!isAddressConfirmed);
+                            setAddressConfirmError(false);
+                          }}
+                          className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all shrink-0 mt-0.5 ${
+                            isAddressConfirmed
+                              ? 'bg-emerald-500 border-emerald-400 text-black shadow-md'
+                              : addressConfirmError
+                              ? 'bg-rose-500/20 border-rose-400 text-transparent'
+                              : 'bg-black/50 border-white/20 hover:border-amber-400 text-transparent'
+                          }`}
+                        >
+                          <Check className={`w-3.5 h-3.5 stroke-[3] ${isAddressConfirmed ? 'text-black' : 'text-transparent'}`} />
+                        </button>
+                        <div className="flex-1 text-xs">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold flex items-center gap-1.5 text-white">
+                              <ShieldCheck className={`w-3.5 h-3.5 ${isAddressConfirmed ? 'text-emerald-400' : 'text-amber-400'}`} />
+                              Confirm Delivery Address
+                            </span>
+                            {isAddressConfirmed ? (
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                                Confirmed ✓
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                                Required
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-zinc-300 mt-1">
+                            Destination: <strong className="text-white">{manualStreet || deliveryAddress?.street || 'Plot 42, Nasser Road'}</strong>
+                            {(manualUnit || deliveryAddress?.unit) && `, ${manualUnit || deliveryAddress?.unit}`}
+                            {`, ${manualCity || deliveryAddress?.city || 'Kampala'}`}
+                          </p>
+                          {!isAddressConfirmed && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAddressConfirmed(true);
+                                setAddressConfirmError(false);
+                              }}
+                              className="mt-1.5 text-[11px] font-bold text-amber-400 hover:text-amber-300 underline flex items-center gap-1"
+                            >
+                              <span>Tap here to confirm this delivery address</span>
+                            </button>
+                          )}
+                          {addressConfirmError && !isAddressConfirmed && (
+                            <p className="text-[11px] text-rose-300 font-semibold mt-1">
+                              ⚠️ Please confirm your delivery address above before submitting your order.
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Payment Method Selector */}
@@ -840,13 +979,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     id="place-order-checkout-btn"
                     onClick={handlePlaceOrder}
                     disabled={isPlacingOrder}
-                    className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 text-black font-bold text-sm sm:text-base flex items-center justify-between shadow-xl shadow-amber-500/20 transition-all active:scale-[0.98]"
+                    className={`w-full py-3.5 px-5 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-between shadow-xl transition-all active:scale-[0.98] ${
+                      !isGuest && !isAddressConfirmed
+                        ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black shadow-amber-500/10'
+                        : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black shadow-amber-500/20'
+                    }`}
                   >
                     <div className="flex items-center gap-2">
                       {isGuest ? (
                         <>
                           <UserCheck className="w-4 h-4 text-black" />
                           <span>Sign In / Register to Order</span>
+                        </>
+                      ) : !isAddressConfirmed ? (
+                        <>
+                          <MapPin className="w-4 h-4 text-black animate-pulse" />
+                          <span>Confirm Address to Place Order</span>
                         </>
                       ) : (
                         <span>{isPlacingOrder ? 'Confirming Order...' : 'Place Order (Cash on Delivery)'}</span>

@@ -24,11 +24,11 @@ export const INITIAL_USER_PROFILE: UserProfile = {
   savedAddresses: [
     {
       id: 'addr-home',
-      label: 'Acacia Kololo (Auto-detected)',
-      street: 'Acacia Avenue, Plot 14',
-      unit: 'Flat 2B, Upper Kololo',
+      label: 'Nasser Road (Default)',
+      street: 'Plot 42, Nasser Road',
+      unit: 'Commercial Plaza, Central Division',
       city: 'Kampala, Uganda',
-      notes: 'Please call driver upon arrival at gate',
+      notes: 'Please call driver upon arrival',
       isDefault: true,
     },
   ],
@@ -57,6 +57,99 @@ export const INITIAL_USER_PROFILE: UserProfile = {
     },
   ],
 };
+
+function parseJsonIfString<T>(val: any, fallback: T): T {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return parsed !== null && parsed !== undefined ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return val;
+}
+
+export function normalizeUserProfile(raw: any): UserProfile {
+  if (!raw || typeof raw !== 'object') {
+    return { ...INITIAL_USER_PROFILE };
+  }
+
+  // Parse savedAddresses if it is a JSON string, object, or array
+  let rawAddresses = parseJsonIfString(raw.savedAddresses ?? raw.saved_addresses, INITIAL_USER_PROFILE.savedAddresses);
+  if (!Array.isArray(rawAddresses)) {
+    if (rawAddresses && typeof rawAddresses === 'object') {
+      rawAddresses = [rawAddresses];
+    } else {
+      rawAddresses = INITIAL_USER_PROFILE.savedAddresses;
+    }
+  }
+  if (rawAddresses.length === 0) {
+    rawAddresses = INITIAL_USER_PROFILE.savedAddresses;
+  } else {
+    // If existing address was the old default Acacia Avenue, upgrade to Nasser Road
+    rawAddresses = rawAddresses.map((addr: any) => {
+      if (addr && (addr.street === 'Acacia Avenue, Plot 14' || addr.street === 'Plot 14, Acacia Avenue, Kololo' || addr.street === 'Acacia Avenue, Plot 14, Kololo')) {
+        return {
+          ...addr,
+          label: 'Nasser Road (Default)',
+          street: 'Plot 42, Nasser Road',
+          unit: addr.unit || 'Commercial Plaza, Central Division',
+          city: 'Kampala, Uganda',
+        };
+      }
+      return addr;
+    });
+  }
+
+  // Parse savedPaymentMethods
+  let rawPaymentMethods = parseJsonIfString(raw.savedPaymentMethods ?? raw.saved_payment_methods, INITIAL_USER_PROFILE.savedPaymentMethods);
+  if (!Array.isArray(rawPaymentMethods) || rawPaymentMethods.length === 0) {
+    rawPaymentMethods = INITIAL_USER_PROFILE.savedPaymentMethods;
+  }
+
+  // Parse favoriteDrinkIds
+  let rawFavorites = parseJsonIfString(raw.favoriteDrinkIds ?? raw.favorite_drink_ids, []);
+  if (!Array.isArray(rawFavorites)) {
+    rawFavorites = [];
+  }
+
+  // Parse redeemedVouchers
+  let rawVouchers = parseJsonIfString(raw.redeemedVouchers ?? raw.redeemed_vouchers, []);
+  if (!Array.isArray(rawVouchers)) {
+    rawVouchers = [];
+  }
+
+  // Parse notificationPreferences
+  let rawNotifs = parseJsonIfString(raw.notificationPreferences ?? raw.notification_preferences, INITIAL_USER_PROFILE.notificationPreferences);
+  if (!rawNotifs || typeof rawNotifs !== 'object' || Array.isArray(rawNotifs)) {
+    rawNotifs = INITIAL_USER_PROFILE.notificationPreferences;
+  }
+
+  const rawAvatar = raw.avatarUrl ?? raw.avatar_url ?? '';
+  const cleanAvatar = typeof rawAvatar === 'string' && !rawAvatar.includes('unsplash.com') ? rawAvatar : '';
+
+  return {
+    name: typeof raw.name === 'string' ? raw.name : '',
+    email: typeof raw.email === 'string' ? raw.email : '',
+    phone: typeof raw.phone === 'string' ? raw.phone : '',
+    avatarUrl: cleanAvatar,
+    loyaltyTier: raw.loyaltyTier || raw.loyalty_tier || 'Silver Member',
+    loyaltyPoints: typeof (raw.loyaltyPoints ?? raw.loyalty_points) === 'number' ? (raw.loyaltyPoints ?? raw.loyalty_points) : 0,
+    stampsCount: typeof (raw.stampsCount ?? raw.stamps_count) === 'number' ? (raw.stampsCount ?? raw.stamps_count) : 0,
+    stampsRequiredForFreeDrink: typeof (raw.stampsRequiredForFreeDrink ?? raw.stamps_required_for_free_drink) === 'number' ? (raw.stampsRequiredForFreeDrink ?? raw.stamps_required_for_free_drink) : 10,
+    favoriteDrinkIds: rawFavorites,
+    notificationPreferences: {
+      ...INITIAL_USER_PROFILE.notificationPreferences,
+      ...rawNotifs,
+    },
+    redeemedVouchers: rawVouchers,
+    savedAddresses: rawAddresses,
+    savedPaymentMethods: rawPaymentMethods,
+    phoneConfirmed: Boolean(raw.phoneConfirmed ?? raw.phone_confirmed),
+  };
+}
 
 const DEFAULT_COURIER: CourierInfo = {
   name: 'Julian Vance',
@@ -123,9 +216,9 @@ export const INITIAL_ORDER_HISTORY: Order[] = [
     courier: DEFAULT_COURIER,
     deliveryAddress: {
       id: 'addr-pfk-home',
-      label: 'Acacia Kololo',
-      street: 'Acacia Avenue, Plot 14',
-      unit: 'Flat 2B, Upper Kololo',
+      label: 'Nasser Road',
+      street: 'Plot 42, Nasser Road',
+      unit: 'Commercial Plaza, Central Division',
       city: 'Kampala, Uganda',
       notes: 'Please call when at gate',
       isDefault: true,
@@ -151,7 +244,7 @@ export const INITIAL_ORDER_HISTORY: Order[] = [
         status: 'on_the_way',
         title: 'On The Way',
         time: '10:05 AM',
-        description: 'Courier en route to Acacia Kololo',
+        description: 'Courier en route to Nasser Road',
         completed: true,
         current: false,
       },
@@ -213,9 +306,9 @@ export const INITIAL_ORDER_HISTORY: Order[] = [
     courier: DEFAULT_COURIER,
     deliveryAddress: {
       id: 'addr-pfk-home',
-      label: 'Acacia Kololo',
-      street: 'Acacia Avenue, Plot 14',
-      unit: 'Flat 2B, Upper Kololo',
+      label: 'Nasser Road',
+      street: 'Plot 42, Nasser Road',
+      unit: 'Commercial Plaza, Central Division',
       city: 'Kampala, Uganda',
       notes: 'Call on arrival',
       isDefault: true,
@@ -304,9 +397,9 @@ export const INITIAL_ORDER_HISTORY: Order[] = [
     courier: DEFAULT_COURIER,
     deliveryAddress: {
       id: 'addr-pfk-home',
-      label: 'Acacia Kololo',
-      street: 'Acacia Avenue, Plot 14',
-      unit: 'Flat 2B, Upper Kololo',
+      label: 'Nasser Road',
+      street: 'Plot 42, Nasser Road',
+      unit: 'Commercial Plaza, Central Division',
       city: 'Kampala, Uganda',
       isDefault: true,
     },

@@ -37,13 +37,13 @@ import {
 } from './types';
 import { CATEGORIES, MOCK_DRINKS, AVAILABLE_ADD_ONS } from './data/mockDrinks';
 import { DEFAULT_HERO_SLIDES } from './data/mockHeroSlides';
-import { INITIAL_USER_PROFILE, INITIAL_ORDER_HISTORY } from './data/mockUserData';
+import { INITIAL_USER_PROFILE, INITIAL_ORDER_HISTORY, normalizeUserProfile } from './data/mockUserData';
 import { calculateItemPrice, formatCurrency, safeLocalStorage } from './utils/formatters';
 import { triggerPushNotification, ORDER_STATUS_NOTIFICATIONS } from './utils/notifications';
 
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
-import { MenuCard } from './components/MenuCard';
+import { MenuCard, MenuGridSkeleton } from './components/MenuCard';
 import { HomeView } from './components/HomeView';
 import { FavoritesView } from './components/FavoritesView';
 import { AppDrawer } from './components/AppDrawer';
@@ -108,6 +108,7 @@ export default function App() {
 
   // Dynamic Drinks Inventory — cloud is the sole source of truth, no localStorage caching
   const [drinks, setDrinks] = useState<Drink[]>([]);
+  const [isDrinksLoading, setIsDrinksLoading] = useState(true);
 
   // Dynamic Hero Banner Slides — cloud is the sole source of truth
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
@@ -125,6 +126,7 @@ export default function App() {
 
     const unsubDrinks = subscribeToDrinks((cloudDrinks) => {
       setDrinks(cloudDrinks || []);
+      setIsDrinksLoading(false);
     });
 
     const unsubOrders = subscribeToOrders((cloudOrders) => {
@@ -146,41 +148,24 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const hasCashOrMomo = parsed.savedPaymentMethods?.some(
-          (pm: any) => pm.type === 'cash' || pm.type === 'mobile_money'
-        );
-
-        // Sanitize legacy mock favorites if present from earlier versions
-        const legacyFavorites = ['blended-passion-juice', 'yoghurt-mango-mixture', 'smoothie-fruit-mix'];
-        const rawFavs: string[] = Array.isArray(parsed.favoriteDrinkIds) ? parsed.favoriteDrinkIds : [];
-        const isLegacyOnly = rawFavs.length === 3 && rawFavs.every((id) => legacyFavorites.includes(id));
-        const cleanFavorites = isLegacyOnly ? [] : rawFavs;
-
-        const rawAvatar = parsed.avatarUrl || '';
-        const cleanAvatar = rawAvatar.includes('unsplash.com') ? '' : rawAvatar;
-
-        return {
-          ...INITIAL_USER_PROFILE,
-          ...parsed,
-          avatarUrl: cleanAvatar,
-          savedPaymentMethods: hasCashOrMomo
-            ? parsed.savedPaymentMethods
-            : INITIAL_USER_PROFILE.savedPaymentMethods,
-          favoriteDrinkIds: cleanFavorites,
-          notificationPreferences: parsed.notificationPreferences || INITIAL_USER_PROFILE.notificationPreferences,
-          loyaltyPoints: parsed.loyaltyPoints ?? 0,
-          redeemedVouchers: parsed.redeemedVouchers || [],
-        };
+        return normalizeUserProfile(parsed);
       } catch (e) {
-        return INITIAL_USER_PROFILE;
+        return { ...INITIAL_USER_PROFILE };
       }
     }
-    return INITIAL_USER_PROFILE;
+    return { ...INITIAL_USER_PROFILE };
   });
 
-  const [activeAddress, setActiveAddress] = useState<DeliveryAddress>(
-    userProfile.savedAddresses.find((a) => a.isDefault) || userProfile.savedAddresses[0]
-  );
+  const [activeAddress, setActiveAddress] = useState<DeliveryAddress>(() => {
+    const addrs = Array.isArray(userProfile?.savedAddresses) && userProfile.savedAddresses.length > 0
+      ? userProfile.savedAddresses
+      : INITIAL_USER_PROFILE.savedAddresses;
+    const defaultAddr = addrs.find((a) => a?.isDefault) || addrs[0] || INITIAL_USER_PROFILE.savedAddresses[0];
+    if (defaultAddr && (defaultAddr.street?.includes('Acacia') || defaultAddr.street?.includes('Kololo'))) {
+      return INITIAL_USER_PROFILE.savedAddresses[0];
+    }
+    return defaultAddr;
+  });
 
   // Cart
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -293,7 +278,26 @@ export default function App() {
         const user = session.user;
         const profile = await loadUserProfileFromCloud(user.id);
         if (profile) {
-          setUserProfile((prev) => ({ ...prev, ...profile }));
+          const normalized = normalizeUserProfile(profile);
+          setUserProfile((prev) => {
+            const localFavs = Array.isArray(prev.favoriteDrinkIds) ? prev.favoriteDrinkIds : [];
+            const cloudFavs = Array.isArray(normalized.favoriteDrinkIds) ? normalized.favoriteDrinkIds : [];
+            const finalFavs = cloudFavs.length > 0 ? cloudFavs : localFavs;
+            const merged = {
+              ...prev,
+              ...normalized,
+              favoriteDrinkIds: finalFavs,
+            };
+            if (finalFavs.length > 0 && cloudFavs.length === 0) {
+              saveUserProfileToCloud(user.id, merged).catch(console.warn);
+            }
+            return merged;
+          });
+          const addrs = Array.isArray(normalized.savedAddresses) && normalized.savedAddresses.length > 0
+            ? normalized.savedAddresses
+            : INITIAL_USER_PROFILE.savedAddresses;
+          const def = addrs.find((a) => a?.isDefault) || addrs[0];
+          if (def) setActiveAddress(def);
         }
       }
     });
@@ -309,14 +313,19 @@ export default function App() {
     }, 2400);
   };
 
-  // Sync state to local storage
+  // Sync state to local storage and Cloud
   useEffect(() => {
     safeLocalStorage.setItem('immy_profile', JSON.stringify(userProfile));
-  }, [userProfile]);
+    if (authUser.isLoggedIn && authUser.id && authUser.id !== 'guest') {
+      saveUserProfileToCloud(authUser.id, userProfile).catch(console.warn);
+    }
+  }, [userProfile, authUser.isLoggedIn, authUser.id]);
 
   useEffect(() => {
     safeLocalStorage.setItem('immy_cart', JSON.stringify(cart));
-  }, [cart]);
+    const userCartKey = authUser.id && authUser.id !== 'guest' ? `immy_cart_${authUser.id}` : 'immy_cart_guest';
+    safeLocalStorage.setItem(userCartKey, JSON.stringify(cart));
+  }, [cart, authUser.id]);
 
   useEffect(() => {
     safeLocalStorage.setItem('immy_orders', JSON.stringify(orderHistory));
@@ -494,7 +503,7 @@ export default function App() {
   // Favorite drinks toggle handler
   const handleToggleFavorite = (drinkId: string) => {
     setUserProfile((prev) => {
-      const current = prev.favoriteDrinkIds || [];
+      const current = Array.isArray(prev.favoriteDrinkIds) ? prev.favoriteDrinkIds : [];
       const exists = current.includes(drinkId);
       const updated = exists ? current.filter((id) => id !== drinkId) : [...current, drinkId];
       const drinkObj = drinks.find((d) => d.id === drinkId);
@@ -503,10 +512,15 @@ export default function App() {
           ? `Removed ${drinkObj?.name || 'drink'} from favorites`
           : `Saved ${drinkObj?.name || 'drink'} to favorites! ❤️`
       );
-      return {
+      const nextProfile: UserProfile = {
         ...prev,
         favoriteDrinkIds: updated,
       };
+      safeLocalStorage.setItem('immy_profile', JSON.stringify(nextProfile));
+      if (authUser.isLoggedIn && authUser.id && authUser.id !== 'guest') {
+        saveUserProfileToCloud(authUser.id, nextProfile).catch(console.warn);
+      }
+      return nextProfile;
     });
   };
 
@@ -830,117 +844,11 @@ export default function App() {
     }
   };
 
-  // Direct Order handler (bypasses cart completely)
+  // Direct Order handler (adds drink to cart and opens checkout drawer for address review & confirmation)
   const handleDirectOrder = (drink: Drink) => {
-    const orderNum = `IMMY-${Math.floor(1000 + Math.random() * 9000)}`;
-    const custName = authUser.name || userProfile.name || 'Customer';
-    const custPhone = authUser.phone || userProfile.phone || '0752619129';
-    const custEmail = authUser.email || userProfile.email || '';
-    const deliveryAddr = activeAddress || userProfile.savedAddresses[0] || {
-      id: 'addr-default',
-      label: 'Home',
-      street: 'Plot 14, Acacia Avenue, Kololo',
-      city: 'Kampala, Uganda',
-      isDefault: true,
-    };
-
-    const directItem: CartItem = {
-      cartItemId: `item-direct-${Date.now()}`,
-      drink,
-      customization: drink.defaultCustomization,
-      quantity: 1,
-      unitPrice: drink.price,
-      totalPrice: drink.price,
-    };
-
-    const deliveryFee = 2000;
-    const total = drink.price + deliveryFee;
-
-    const newOrder: Order = {
-      id: `ord-${Date.now()}`,
-      orderNumber: orderNum,
-      createdAt: 'Just now',
-      customerName: custName,
-      customerPhone: custPhone,
-      customerEmail: custEmail,
-      items: [directItem],
-      subtotal: drink.price,
-      deliveryFee,
-      tip: 0,
-      discount: 0,
-      total,
-      status: 'placed',
-      progressPercent: 20,
-      estimatedDeliveryTime: 'In ~18-22 mins',
-      courier: {
-        name: 'Express Dispatcher',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-        vehicle: 'Motorcycle Courier',
-        phone: '0752619129',
-        rating: 4.96,
-        deliveredCount: 1421,
-      },
-      deliveryAddress: deliveryAddr,
-      timeline: [
-        {
-          status: 'placed',
-          title: 'Order Confirmed',
-          time: 'Just now',
-          description: 'Order placed directly and queued for preparation',
-          completed: true,
-          current: true,
-        },
-        {
-          status: 'packaged',
-          title: 'Packaged & Sealed',
-          time: 'Pending',
-          description: 'Sealing beverages with tamper-proof insulated lock',
-          completed: false,
-          current: false,
-        },
-        {
-          status: 'on_the_way',
-          title: 'Courier Dispatched',
-          time: 'Pending',
-          description: 'Courier en route to your delivery address',
-          completed: false,
-          current: false,
-        },
-        {
-          status: 'delivered',
-          title: 'Delivered',
-          time: 'Pending',
-          description: 'Handed over at doorstep',
-          completed: false,
-          current: false,
-        },
-      ],
-    };
-
-    // Loyalty points
-    const pointsEarned = Math.round(total / 100);
-    setUserProfile((prev) => ({
-      ...prev,
-      stampsCount: Math.min(10, prev.stampsCount + 1),
-      loyaltyPoints: (prev.loyaltyPoints || 0) + pointsEarned,
-    }));
-
-    // Update active order & history
-    setActiveOrder(newOrder);
-    setOrderHistory((prev) => [newOrder, ...prev]);
-
-    // Send push notification
-    const confirmPush: PushNotificationEvent = {
-      ...ORDER_STATUS_NOTIFICATIONS.placed,
-      id: `push-placed-${newOrder.id}`,
-      orderId: newOrder.id,
-      timestamp: 'Just now',
-    };
-    sendPushNotification(confirmPush);
-
-    // Switch to tracker view directly
-    setCurrentTab('tracker');
-    showToast(`Order #${orderNum} placed directly for ${drink.name}!`);
+    handleAddToCart(drink);
+    setIsCartOpen(true);
+    showToast(`Added ${drink.name}. Please confirm your delivery address before checkout.`);
   };
 
   // Cancel Order handler (disallowed if on the way or delivered)
@@ -977,8 +885,51 @@ export default function App() {
     showToast(`Order #${order.orderNumber} has been cancelled.`);
   };
 
+  // Logout handler: Only clears out the active cart (with a subtle warning).
+  // All user data and settings stay intact: address, favorites, profile settings, and order history!
+  const handleLogout = async () => {
+    const itemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    // 1. Reset authUser state and clear stored auth info
+    setAuthUser({
+      id: '',
+      name: '',
+      email: '',
+      role: 'customer',
+      isLoggedIn: false,
+    });
+    safeLocalStorage.removeItem('immy_auth_user');
+
+    // 2. Clear ONLY the active cart state and active cart storage
+    setCart([]);
+    safeLocalStorage.removeItem('immy_cart');
+    safeLocalStorage.removeItem('sipcraft_cart');
+    if (authUser.id && authUser.id !== 'guest') {
+      safeLocalStorage.removeItem(`immy_cart_${authUser.id}`);
+    }
+
+    // 3. Keep user profile, address, favorites, and order history intact!
+    // We intentionally DO NOT wipe userProfile or safeLocalStorage 'immy_profile'
+    // so consistency is maintained across sessions and logouts.
+
+    // 4. Trigger Supabase signOut
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Sign out error:', err);
+    }
+
+    // 5. Subtle warning toast
+    if (itemsCount > 0) {
+      showToast('Signed out. Active cart cleared, while your delivery address, favorites, and order history remain safely preserved.');
+    } else {
+      showToast('Signed out. Your address, favorites, and order history remain safely preserved.');
+    }
+    setCurrentTab('menu');
+  };
+
   // Delete Account handler
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     try {
       const storedUsersRaw = safeLocalStorage.getItem('immy_registered_users');
       if (storedUsersRaw) {
@@ -995,10 +946,16 @@ export default function App() {
       // ignore
     }
 
+    if (authUser.id) {
+      safeLocalStorage.removeItem(`immy_cart_${authUser.id}`);
+    }
+    safeLocalStorage.removeItem('immy_cart');
+    safeLocalStorage.removeItem('sipcraft_cart');
     safeLocalStorage.removeItem('immy_auth_user');
     safeLocalStorage.removeItem('immy_profile');
     safeLocalStorage.removeItem('immy_active_order');
 
+    setCart([]);
     setAuthUser({
       id: '',
       name: '',
@@ -1006,24 +963,30 @@ export default function App() {
       role: 'customer',
       isLoggedIn: false,
     });
-    setUserProfile(INITIAL_USER_PROFILE);
+    setUserProfile({ ...INITIAL_USER_PROFILE });
     setActiveOrder(null);
     setCurrentTab('home');
+
+    try {
+      await supabase.auth.signOut();
+    } catch {}
+
     showToast('Your account has been deleted successfully.');
   };
 
-  // Customer-specific orders filtering (Prevents new accounts from seeing unplaced mock orders)
+  // Customer-specific orders filtering (Preserves user order history consistently even across logout)
   const displayedOrders = useMemo(() => {
     if (authUser.role === 'admin') {
       return orderHistory;
     }
 
-    if (authUser.isLoggedIn) {
-      const userEmail = (authUser.email || userProfile.email || '').toLowerCase().trim();
-      const userPhone = (authUser.phone || userProfile.phone || '').trim();
-      const userName = (authUser.name || userProfile.name || '').toLowerCase().trim();
+    const userEmail = (authUser.email || userProfile.email || '').toLowerCase().trim();
+    const userPhone = (authUser.phone || userProfile.phone || '').trim();
+    const userName = (authUser.name || userProfile.name || '').toLowerCase().trim();
 
-      return orderHistory.filter((ord) => {
+    // If we have any user identifier from current auth session or saved profile, match orders
+    if (userEmail || userPhone || userName) {
+      const userOrders = orderHistory.filter((ord) => {
         const ordEmail = (ord.customerEmail || '').toLowerCase().trim();
         const ordPhone = (ord.customerPhone || '').trim();
         const ordName = (ord.customerName || '').toLowerCase().trim();
@@ -1034,9 +997,13 @@ export default function App() {
 
         return matchEmail || matchPhone || matchName;
       });
+
+      if (userOrders.length > 0) {
+        return userOrders;
+      }
     }
 
-    // Guest customers see orders created in guest session
+    // Guest customers or fallback: show orders created in guest session
     return orderHistory.filter((ord) => 
       ord.customerEmail === 'guest@immydrinks.com' || ord.customerName === 'Guest Customer'
     );
@@ -1543,7 +1510,9 @@ export default function App() {
 
               {/* Drinks Grid */}
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-                {filteredDrinks.length === 0 ? (
+                {isDrinksLoading ? (
+                  <MenuGridSkeleton count={6} />
+                ) : filteredDrinks.length === 0 ? (
                   <div className="text-center py-16 bg-[#13161e] rounded-3xl border border-white/10 p-8">
                     {activeFilter === 'favorites' ? (
                       <>
@@ -1660,17 +1629,7 @@ export default function App() {
                 themeMode={themeMode}
                 resolvedTheme={resolvedTheme}
                 onChangeTheme={changeTheme}
-                onLogout={() => {
-                  setAuthUser({
-                    id: '',
-                    name: '',
-                    email: '',
-                    role: 'customer',
-                    isLoggedIn: false,
-                  });
-                  showToast('Signed out');
-                  setCurrentTab('menu');
-                }}
+                onLogout={handleLogout}
               />
             ) : (
               <CustomerAccountView
@@ -1683,41 +1642,41 @@ export default function App() {
                   showToast('Profile updated successfully');
                 }}
                 onAddNewAddress={(addr) => {
-                  setUserProfile((prev) => ({
-                    ...prev,
-                    savedAddresses: [...prev.savedAddresses, addr],
-                  }));
+                  setUserProfile((prev) => {
+                    const currentAddrs = Array.isArray(prev.savedAddresses) ? prev.savedAddresses : [];
+                    return {
+                      ...prev,
+                      savedAddresses: [...currentAddrs, addr],
+                    };
+                  });
                   showToast('New address saved');
                 }}
                 onDeleteAddress={(id) => {
-                  setUserProfile((prev) => ({
-                    ...prev,
-                    savedAddresses: prev.savedAddresses.filter((a) => a.id !== id),
-                  }));
+                  setUserProfile((prev) => {
+                    const currentAddrs = Array.isArray(prev.savedAddresses) ? prev.savedAddresses : [];
+                    return {
+                      ...prev,
+                      savedAddresses: currentAddrs.filter((a) => a.id !== id),
+                    };
+                  });
                 }}
                 onSetDefaultAddress={(id) => {
-                  setUserProfile((prev) => ({
-                    ...prev,
-                    savedAddresses: prev.savedAddresses.map((a) => ({
+                  setUserProfile((prev) => {
+                    const currentAddrs = Array.isArray(prev.savedAddresses) ? prev.savedAddresses : INITIAL_USER_PROFILE.savedAddresses;
+                    const updated = currentAddrs.map((a) => ({
                       ...a,
                       isDefault: a.id === id,
-                    })),
-                  }));
-                  const newDefault = userProfile.savedAddresses.find((a) => a.id === id);
-                  if (newDefault) setActiveAddress(newDefault);
+                    }));
+                    const newDefault = updated.find((a) => a.id === id);
+                    if (newDefault) setActiveAddress(newDefault);
+                    return {
+                      ...prev,
+                      savedAddresses: updated,
+                    };
+                  });
                   showToast('Default delivery address updated');
                 }}
-                onLogout={() => {
-                  setAuthUser({
-                    id: '',
-                    name: '',
-                    email: '',
-                    role: 'customer',
-                    isLoggedIn: false,
-                  });
-                  showToast('Signed out');
-                  setCurrentTab('menu');
-                }}
+                onLogout={handleLogout}
                 onDeleteAccount={handleDeleteAccount}
               />
             )
@@ -1737,55 +1696,26 @@ export default function App() {
           setIsAuthTransitioning(true);
           setAuthUser(user);
 
+          // User-scoped cart isolation: load cart specifically for this account (or empty for new accounts)
+          const userCartKey = user.id && user.id !== 'guest' ? `immy_cart_${user.id}` : 'immy_cart_guest';
+          const savedUserCart = safeLocalStorage.getItem(userCartKey);
+          if (savedUserCart) {
+            try {
+              setCart(JSON.parse(savedUserCart));
+            } catch {
+              setCart([]);
+            }
+          } else {
+            setCart([]);
+          }
+
           if (user.id === 'guest') {
-            // Guest customer: clean slate with 0 pre-selected favorites and 0 pending orders
-            setUserProfile({
-              name: 'Guest Customer',
-              email: 'guest@immydrinks.com',
-              phone: '',
-              avatarUrl: '',
-              loyaltyTier: 'Silver Member',
-              loyaltyPoints: 0,
-              stampsCount: 0,
-              stampsRequiredForFreeDrink: 10,
-              favoriteDrinkIds: [],
-              notificationPreferences: {
-                pushEnabled: true,
-                orderUpdates: true,
-                brewingAlerts: false,
-                outForDelivery: true,
-                deliveredAlert: true,
-                promotionsAndRewards: true,
-                soundEnabled: true,
-              },
-              redeemedVouchers: [],
-              savedAddresses: [
-                {
-                  id: 'addr-default',
-                  label: 'Kampala Delivery',
-                  street: 'Plot 14, Acacia Avenue, Kololo',
-                  unit: '',
-                  city: 'Kampala, Uganda',
-                  notes: '',
-                  isDefault: true,
-                },
-              ],
-              savedPaymentMethods: [
-                {
-                  id: 'pm-cash',
-                  type: 'cash',
-                  label: 'Cash on Delivery',
-                  subtitle: 'Pay with cash upon delivery to the courier',
-                  cardBrand: 'Cash on Delivery',
-                  last4: 'CASH',
-                  expiry: 'Pay upon delivery',
-                  isDefault: true,
-                  comingSoon: false,
-                },
-              ],
-            });
-            setActiveOrder(null);
-            safeLocalStorage.removeItem('immy_active_order');
+            // Guest customer: preserve existing local addresses and favorites if present
+            setUserProfile((prev) => ({
+              ...prev,
+              name: prev.name && prev.name !== 'Guest Customer' ? prev.name : 'Guest Customer',
+              email: prev.email || 'guest@immydrinks.com',
+            }));
           } else if (user.role === 'admin') {
             setUserProfile((prev) => ({
               ...prev,
@@ -1794,9 +1724,8 @@ export default function App() {
               phone: user.phone || '0752619129',
             }));
           } else {
-            // Logged-in customer
+            // Logged-in customer: retain and preserve saved addresses, favorites, and profile
             setUserProfile((prev) => {
-              const isMatch = (user.email && prev.email === user.email) || (user.phone && prev.phone === user.phone);
               return {
                 ...prev,
                 name: user.name || prev.name,
@@ -1804,9 +1733,42 @@ export default function App() {
                 phone: user.phone || prev.phone || '',
                 authProvider: user.authProvider || prev.authProvider,
                 phoneConfirmed: user.phoneConfirmed ?? prev.phoneConfirmed,
-                favoriteDrinkIds: isMatch ? (prev.favoriteDrinkIds || []) : [],
+                favoriteDrinkIds: Array.isArray(prev.favoriteDrinkIds) ? prev.favoriteDrinkIds : [],
+                savedAddresses: Array.isArray(prev.savedAddresses) && prev.savedAddresses.length > 0
+                  ? prev.savedAddresses
+                  : INITIAL_USER_PROFILE.savedAddresses,
               };
             });
+
+            // Also load any persistent cloud profile for this user ID
+            if (user.id) {
+              loadUserProfileFromCloud(user.id).then((cloudProfile) => {
+                if (cloudProfile) {
+                  const normalized = normalizeUserProfile(cloudProfile);
+                  setUserProfile((curr) => {
+                    const cloudFavs = Array.isArray(normalized.favoriteDrinkIds) ? normalized.favoriteDrinkIds : [];
+                    const currFavs = Array.isArray(curr.favoriteDrinkIds) ? curr.favoriteDrinkIds : [];
+                    const finalFavs = cloudFavs.length > 0 ? cloudFavs : currFavs;
+
+                    const cloudAddrs = Array.isArray(normalized.savedAddresses) && normalized.savedAddresses.length > 0
+                      ? normalized.savedAddresses
+                      : [];
+                    const currAddrs = Array.isArray(curr.savedAddresses) && curr.savedAddresses.length > 0
+                      ? curr.savedAddresses
+                      : [];
+                    const finalAddrs = cloudAddrs.length > 0 ? cloudAddrs : (currAddrs.length > 0 ? currAddrs : INITIAL_USER_PROFILE.savedAddresses);
+
+                    return {
+                      ...curr,
+                      ...normalized,
+                      favoriteDrinkIds: finalFavs,
+                      savedAddresses: finalAddrs,
+                    };
+                  });
+                }
+              }).catch(console.warn);
+            }
+
             setActiveOrder((prev) => {
               if (!prev) return null;
               const matches =
@@ -1866,6 +1828,15 @@ export default function App() {
         items={cart}
         onUpdateQuantity={handleUpdateCartQuantity}
         onRemoveItem={handleRemoveCartItem}
+        onClearCart={() => {
+          setCart([]);
+          safeLocalStorage.removeItem('immy_cart');
+          safeLocalStorage.removeItem('sipcraft_cart');
+          if (authUser.id && authUser.id !== 'guest') {
+            safeLocalStorage.removeItem(`immy_cart_${authUser.id}`);
+          }
+          showToast('Cart cleared.');
+        }}
         deliveryAddress={activeAddress}
         savedAddresses={userProfile.savedAddresses}
         onSelectAddress={(addr) => setActiveAddress(addr)}
@@ -1903,6 +1874,7 @@ export default function App() {
         cartCount={totalCartCount}
         openCart={() => setIsCartOpen(true)}
         hasActiveOrder={hasActiveDelivery}
+        activeOrdersCount={displayedOrders.filter((o) => o.status !== 'delivered').length}
         favoritesCount={userProfile.favoriteDrinkIds?.length || 0}
       />
 

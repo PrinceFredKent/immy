@@ -4,6 +4,7 @@ import {
   X, 
   Leaf,
   Clock, 
+  ReceiptText,
   Heart, 
   User, 
   PhoneCall, 
@@ -124,7 +125,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
                 {[
                   { id: 'home', label: 'Home Feed', icon: Sparkles },
                   { id: 'menu', label: 'All Drinks & Catalog', icon: Leaf },
-                  { id: 'orders', label: 'My Orders & History', icon: Clock },
+                  { id: 'orders', label: 'My Orders & History', icon: ReceiptText },
                   { id: 'favorites', label: 'Saved Favorites', icon: Heart, count: userProfile.favoriteDrinkIds?.length },
                   { id: 'tracker', label: 'Live Delivery Tracker', icon: Compass, badge: hasActiveOrder ? 'Active' : undefined },
                   { id: 'profile', label: userRole === 'admin' ? 'Admin Dashboard' : 'My Account', icon: userRole === 'admin' ? ShieldCheck : User },

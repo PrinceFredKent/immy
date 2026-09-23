@@ -3,6 +3,7 @@ import {
   Clock, 
   RotateCcw, 
   Receipt, 
+  ReceiptText,
   Compass, 
   ShoppingBag, 
   ArrowRight,
@@ -72,7 +73,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
     const custName = order.customerName || 'Prince Fred Kent';
     const custPhone = order.customerPhone || '0752619129';
     const custEmail = order.customerEmail || 'princefredkent@gmail.com';
-    const custAddr = order.deliveryAddress?.street || 'Acacia Avenue, Kololo, Kampala';
+    const custAddr = order.deliveryAddress?.street || 'Plot 42, Nasser Road, Kampala';
 
     if (!customerMap.has(custName)) {
       customerMap.set(custName, {
@@ -510,7 +511,7 @@ export const OrdersView: React.FC<OrdersViewProps> = ({
       {orders.length === 0 ? (
         <div className="p-10 rounded-3xl bg-[#13161e] border border-white/10 text-center space-y-4 shadow-xl">
           <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-500 mx-auto">
-            <Clock className="w-8 h-8 text-amber-400/60" />
+            <ReceiptText className="w-8 h-8 text-amber-400/80 stroke-[1.8]" />
           </div>
           <div>
             <h3 className="font-display font-bold text-lg text-white">No Orders Yet</h3>

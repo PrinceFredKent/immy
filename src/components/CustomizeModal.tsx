@@ -9,7 +9,9 @@ import {
   Heart,
   Star,
   Maximize2,
-  ChevronDown
+  ChevronDown,
+  ArrowLeft,
+  ChevronRight
 } from 'lucide-react';
 import { 
   Drink, 
@@ -52,6 +54,7 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
   const [quantity, setQuantity] = useState(1);
   const [isFullScreenPhoto, setIsFullScreenPhoto] = useState(false);
   const [selectedFlavor, setSelectedFlavor] = useState<string>('');
+  const [activeParentFlavor, setActiveParentFlavor] = useState<DrinkFlavor | null>(null);
   const [flavorError, setFlavorError] = useState(false);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
 
@@ -64,15 +67,48 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
     const id = drink.id.toLowerCase();
     const name = drink.name.toLowerCase();
     
+    if (id.includes('fanta') || name.includes('fanta')) {
+      return [
+        { id: 'fanta-orange', name: 'Fanta Orange', image: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'fanta-fruity', name: 'Fanta Fruity', image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=200&q=80', inStock: true },
+      ];
+    }
+    if (id.includes('mirinda') || name.includes('mirinda')) {
+      return [
+        { id: 'mirinda-fruity', name: 'Mirinda Fruity', image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'mirinda-apple', name: 'Mirinda Apple', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'mirinda-pineapple', name: 'Mirinda Pineapple', image: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'mirinda-orange', name: 'Mirinda Orange', image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80', inStock: true },
+      ];
+    }
     if (id.includes('soda') || name.includes('soda')) {
       return [
-        { id: 'soda-pepsi', name: 'Pepsi Cola', image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=200&q=80', inStock: true },
-        { id: 'soda-mirinda-orange', name: 'Mirinda Orange', image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80', inStock: true },
-        { id: 'soda-mirinda-fruity', name: 'Mirinda Fruity', image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-coca-cola', name: 'Coca-Cola', image: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-pepsi', name: 'Pepsi', image: 'https://images.unsplash.com/photo-1629203851122-3726ecdf080e?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { 
+          id: 'soda-fanta', 
+          name: 'Fanta', 
+          image: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=200&q=80', 
+          inStock: true,
+          subFlavors: [
+            { id: 'fanta-orange', name: 'Fanta Orange', image: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=200&q=80', inStock: true },
+            { id: 'fanta-fruity', name: 'Fanta Fruity', image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=200&q=80', inStock: true },
+          ],
+        },
+        { 
+          id: 'soda-mirinda', 
+          name: 'Mirinda', 
+          image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80', 
+          inStock: true,
+          subFlavors: [
+            { id: 'mirinda-fruity', name: 'Mirinda Fruity', image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=200&q=80', inStock: true },
+            { id: 'mirinda-apple', name: 'Mirinda Apple', image: 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=200&q=80', inStock: true },
+            { id: 'mirinda-pineapple', name: 'Mirinda Pineapple', image: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?auto=format&fit=crop&w=200&q=80', inStock: true },
+            { id: 'mirinda-orange', name: 'Mirinda Orange', image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?auto=format&fit=crop&w=200&q=80', inStock: true },
+          ],
+        },
         { id: 'soda-mountain-dew', name: 'Mountain Dew', image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=200&q=80', inStock: true },
-        { id: 'soda-7up', name: '7UP Crisp Lemon', image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=200&q=80', inStock: true },
-        { id: 'soda-coca-cola', name: 'Coca-Cola Classic', image: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?auto=format&fit=crop&w=200&q=80', inStock: true },
-        { id: 'soda-fanta-orange', name: 'Fanta Orange', image: 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=200&q=80', inStock: true },
+        { id: 'soda-7up', name: '7UP', image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=200&q=80', inStock: true },
       ];
     }
     if (id.includes('minute-maid') || name.includes('minute-maid') || name.includes('maid')) {
@@ -101,11 +137,23 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
     return [];
   }, [drink]);
 
+  // Flatten all main and sub flavors for lookup
+  const allFlattenedFlavors = useMemo(() => {
+    const list: DrinkFlavor[] = [];
+    availableFlavors.forEach((f) => {
+      list.push(f);
+      if (f.subFlavors && f.subFlavors.length > 0) {
+        f.subFlavors.forEach((sf) => list.push(sf));
+      }
+    });
+    return list;
+  }, [availableFlavors]);
+
   // Compute selected flavor object & active display image
   const currentFlavorObj = useMemo(() => {
     if (!selectedFlavor) return null;
-    return availableFlavors.find((f) => f.name === selectedFlavor) || null;
-  }, [selectedFlavor, availableFlavors]);
+    return allFlattenedFlavors.find((f) => f.name === selectedFlavor) || null;
+  }, [selectedFlavor, allFlattenedFlavors]);
 
   const activeDisplayImage = (currentFlavorObj && currentFlavorObj.image) 
     ? currentFlavorObj.image 
@@ -120,11 +168,14 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
       setQuantity(1);
       // Explicit requirement: none of the chips must be selected by default
       setSelectedFlavor('');
+      setActiveParentFlavor(null);
       setFlavorError(false);
 
       // For items with no flavor options/selection, extend the description by default
       const hasFlavors = (drink.flavors && drink.flavors.length > 0) ||
         drink.id.toLowerCase().includes('soda') || drink.name.toLowerCase().includes('soda') ||
+        drink.id.toLowerCase().includes('fanta') || drink.name.toLowerCase().includes('fanta') ||
+        drink.id.toLowerCase().includes('mirinda') || drink.name.toLowerCase().includes('mirinda') ||
         drink.id.toLowerCase().includes('minute-maid') || drink.name.toLowerCase().includes('minute-maid') || drink.name.toLowerCase().includes('maid') ||
         drink.id.toLowerCase().includes('oner') || drink.name.toLowerCase().includes('oner') ||
         drink.id.toLowerCase().includes('cake') || drink.name.toLowerCase().includes('cake');
@@ -474,67 +525,190 @@ export const CustomizeModal: React.FC<CustomizeModalProps> = ({
                     </motion.p>
                   )}
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
-                    {availableFlavors.map((flavor) => {
-                      const isSelected = selectedFlavor === flavor.name;
-                      const isOutOfStock = flavor.inStock === false;
+                  <AnimatePresence mode="wait">
+                    {activeParentFlavor && activeParentFlavor.subFlavors && activeParentFlavor.subFlavors.length > 0 ? (
+                      /* Sub-Flavors Dynamic View */
+                      <motion.div
+                        key={`sub-flavors-${activeParentFlavor.id}`}
+                        initial={{ opacity: 0, x: 16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -16 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-2"
+                      >
+                        {/* Sub-flavor breadcrumb header */}
+                        <div className="flex items-center justify-between pb-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setActiveParentFlavor(null)}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 px-2.5 py-1 rounded-xl transition-all active:scale-95"
+                          >
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                            <span>All Brands</span>
+                          </button>
+                          <span className="text-xs font-bold text-zinc-300 flex items-center gap-1">
+                            {activeParentFlavor.name} Varieties
+                            <span className="text-[10px] text-zinc-500 font-normal">
+                              ({activeParentFlavor.subFlavors.length})
+                            </span>
+                          </span>
+                        </div>
 
-                      return (
-                        <motion.button
-                          whileTap={isOutOfStock ? undefined : { scale: 0.96 }}
-                          whileHover={isOutOfStock ? undefined : { scale: 1.02 }}
-                          type="button"
-                          key={flavor.id || flavor.name}
-                          disabled={isOutOfStock}
-                          onClick={() => {
-                            if (isOutOfStock) return;
-                            setFlavorError(false);
-                            // Set selected flavor (or toggle if clicked again)
-                            setSelectedFlavor((prev) => (prev === flavor.name ? '' : flavor.name));
-                          }}
-                          className={`flex items-center gap-2 p-1.5 sm:p-2 rounded-xl text-left text-xs font-semibold transition-all border ${
-                            isOutOfStock
-                              ? 'bg-zinc-900/40 border-white/5 text-zinc-600 cursor-not-allowed opacity-60'
-                              : isSelected
-                              ? 'bg-amber-500/20 border-amber-500 text-white shadow-md shadow-amber-500/15 ring-1 ring-amber-500/50'
-                              : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10'
-                          }`}
-                        >
-                          {/* Small Individual Flavor Image with rounded styling */}
-                          {flavor.image ? (
-                            <img
-                              src={flavor.image}
-                              alt={flavor.name}
-                              referrerPolicy="no-referrer"
-                              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover ring-1 shrink-0 bg-black/40 ${
-                                isSelected ? 'ring-amber-400' : 'ring-white/15'
-                              }`}
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
+                        {/* Sub-flavor chips */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2">
+                          {activeParentFlavor.subFlavors.map((subFlavor) => {
+                            const isSelected = selectedFlavor === subFlavor.name;
+                            const isOutOfStock = subFlavor.inStock === false;
+
+                            return (
+                              <motion.button
+                                whileTap={isOutOfStock ? undefined : { scale: 0.96 }}
+                                whileHover={isOutOfStock ? undefined : { scale: 1.02 }}
+                                type="button"
+                                key={subFlavor.id || subFlavor.name}
+                                disabled={isOutOfStock}
+                                onClick={() => {
+                                  if (isOutOfStock) return;
+                                  setFlavorError(false);
+                                  setSelectedFlavor((prev) => (prev === subFlavor.name ? '' : subFlavor.name));
+                                }}
+                                className={`flex items-center gap-2 p-1.5 sm:p-2 rounded-xl text-left text-xs font-semibold transition-all border ${
+                                  isOutOfStock
+                                    ? 'bg-zinc-900/40 border-white/5 text-zinc-600 cursor-not-allowed opacity-60'
+                                    : isSelected
+                                    ? 'bg-amber-500/20 border-amber-500 text-white shadow-md shadow-amber-500/15 ring-1 ring-amber-500/50'
+                                    : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10'
+                                }`}
+                              >
+                                {subFlavor.image ? (
+                                  <img
+                                    src={subFlavor.image}
+                                    alt={subFlavor.name}
+                                    referrerPolicy="no-referrer"
+                                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover ring-1 shrink-0 bg-black/40 ${
+                                      isSelected ? 'ring-amber-400' : 'ring-white/15'
+                                    }`}
+                                    onError={(e) => {
+                                      (e.target as HTMLElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-amber-400">
+                                    {subFlavor.name.charAt(0)}
+                                  </div>
+                                )}
+
+                                <div className="min-w-0 flex-1">
+                                  <p className={`truncate text-xs ${isSelected ? 'font-bold text-amber-300' : 'text-zinc-200'}`}>
+                                    {subFlavor.name}
+                                  </p>
+                                  {isOutOfStock ? (
+                                    <span className="text-[9px] text-rose-400 font-medium block">Out of stock</span>
+                                  ) : isSelected ? (
+                                    <span className="text-[9px] text-amber-400 font-medium flex items-center gap-0.5">
+                                      <Check className="w-2.5 h-2.5" /> Selected
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] text-zinc-400 font-normal block">Tap to select</span>
+                                  )}
+                                </div>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    ) : (
+                      /* Top-Level Flavor Chips View */
+                      <motion.div
+                        key="main-flavors-grid"
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 16 }}
+                        transition={{ duration: 0.2 }}
+                        className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2"
+                      >
+                        {availableFlavors.map((flavor) => {
+                          const hasSubFlavors = Boolean(flavor.subFlavors && flavor.subFlavors.length > 0);
+                          const isSubSelected = hasSubFlavors && flavor.subFlavors?.some((sf) => sf.name === selectedFlavor);
+                          const isSelected = isSubSelected || selectedFlavor === flavor.name;
+                          const isOutOfStock = flavor.inStock === false;
+
+                          return (
+                            <motion.button
+                              whileTap={isOutOfStock ? undefined : { scale: 0.96 }}
+                              whileHover={isOutOfStock ? undefined : { scale: 1.02 }}
+                              type="button"
+                              key={flavor.id || flavor.name}
+                              disabled={isOutOfStock}
+                              onClick={() => {
+                                if (isOutOfStock) return;
+                                setFlavorError(false);
+                                if (hasSubFlavors) {
+                                  // Dynamically transition chips to specific sub-flavors
+                                  setActiveParentFlavor(flavor);
+                                } else {
+                                  // Direct flavor selection
+                                  setSelectedFlavor((prev) => (prev === flavor.name ? '' : flavor.name));
+                                }
                               }}
-                            />
-                          ) : (
-                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-amber-400">
-                              {flavor.name.charAt(0)}
-                            </div>
-                          )}
+                              className={`flex items-center gap-2 p-1.5 sm:p-2 rounded-xl text-left text-xs font-semibold transition-all border ${
+                                isOutOfStock
+                                  ? 'bg-zinc-900/40 border-white/5 text-zinc-600 cursor-not-allowed opacity-60'
+                                  : isSelected
+                                  ? 'bg-amber-500/20 border-amber-500 text-white shadow-md shadow-amber-500/15 ring-1 ring-amber-500/50'
+                                  : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10'
+                              }`}
+                            >
+                              {/* Small Individual Flavor Image with rounded styling */}
+                              {flavor.image ? (
+                                <img
+                                  src={flavor.image}
+                                  alt={flavor.name}
+                                  referrerPolicy="no-referrer"
+                                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover ring-1 shrink-0 bg-black/40 ${
+                                    isSelected ? 'ring-amber-400' : 'ring-white/15'
+                                  }`}
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-amber-400">
+                                  {flavor.name.charAt(0)}
+                                </div>
+                              )}
 
-                          <div className="min-w-0 flex-1">
-                            <p className={`truncate text-xs ${isSelected ? 'font-bold text-amber-300' : 'text-zinc-200'}`}>
-                              {flavor.name}
-                            </p>
-                            {isOutOfStock ? (
-                              <span className="text-[9px] text-rose-400 font-medium block">Out of stock</span>
-                            ) : isSelected ? (
-                              <span className="text-[9px] text-amber-400 font-medium flex items-center gap-0.5">
-                                <Check className="w-2.5 h-2.5" /> Selected
-                              </span>
-                            ) : null}
-                          </div>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <p className={`truncate text-xs ${isSelected ? 'font-bold text-amber-300' : 'text-zinc-200'}`}>
+                                    {flavor.name}
+                                  </p>
+                                  {hasSubFlavors && !isSelected && (
+                                    <ChevronRight className="w-3 h-3 text-amber-400/70 shrink-0" />
+                                  )}
+                                </div>
+                                {isOutOfStock ? (
+                                  <span className="text-[9px] text-rose-400 font-medium block">Out of stock</span>
+                                ) : isSubSelected ? (
+                                  <span className="text-[9px] text-amber-300 font-medium truncate block">
+                                    ✓ {selectedFlavor}
+                                  </span>
+                                ) : isSelected ? (
+                                  <span className="text-[9px] text-amber-400 font-medium flex items-center gap-0.5">
+                                    <Check className="w-2.5 h-2.5" /> Selected
+                                  </span>
+                                ) : hasSubFlavors ? (
+                                  <span className="text-[9px] text-amber-400/80 font-medium flex items-center gap-0.5">
+                                    {flavor.subFlavors?.length} flavors ›
+                                  </span>
+                                ) : null}
+                              </div>
+                            </motion.button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
 

@@ -14,7 +14,7 @@ import {
   HeroSlide,
 } from '../types';
 import { DEFAULT_HERO_SLIDES } from '../data/mockHeroSlides';
-import { INITIAL_USER_PROFILE } from '../data/mockUserData';
+import { INITIAL_USER_PROFILE, normalizeUserProfile } from '../data/mockUserData';
 
 // ---------------------------------------------------------------------------
 // 0. HELPERS
@@ -407,41 +407,27 @@ export async function updateOrderStatusInCloud(orderId: string, status: Delivery
 // ---------------------------------------------------------------------------
 
 function profileToRow(userId: string, profile: UserProfile) {
+  const norm = normalizeUserProfile(profile);
   return {
     id: userId,
-    name: profile.name,
-    phone: profile.phone,
-    avatar_url: profile.avatarUrl,
-    loyalty_tier: profile.loyaltyTier,
-    loyalty_points: profile.loyaltyPoints,
-    stamps_count: profile.stampsCount,
-    stamps_required_for_free_drink: profile.stampsRequiredForFreeDrink,
-    favorite_drink_ids: profile.favoriteDrinkIds,
-    notification_preferences: profile.notificationPreferences,
-    redeemed_vouchers: profile.redeemedVouchers,
-    saved_addresses: profile.savedAddresses,
-    saved_payment_methods: profile.savedPaymentMethods,
-    phone_confirmed: profile.phoneConfirmed ?? false,
+    name: norm.name,
+    phone: norm.phone,
+    avatar_url: norm.avatarUrl,
+    loyalty_tier: norm.loyaltyTier,
+    loyalty_points: norm.loyaltyPoints,
+    stamps_count: norm.stampsCount,
+    stamps_required_for_free_drink: norm.stampsRequiredForFreeDrink,
+    favorite_drink_ids: norm.favoriteDrinkIds,
+    notification_preferences: norm.notificationPreferences,
+    redeemed_vouchers: norm.redeemedVouchers,
+    saved_addresses: norm.savedAddresses,
+    saved_payment_methods: norm.savedPaymentMethods,
+    phone_confirmed: norm.phoneConfirmed ?? false,
   };
 }
 
 function rowToProfile(row: any): UserProfile {
-  return {
-    name: row.name || '',
-    email: row.email || '',
-    phone: row.phone || '',
-    avatarUrl: row.avatar_url || '',
-    loyaltyTier: row.loyalty_tier || 'Silver Member',
-    loyaltyPoints: row.loyalty_points || 0,
-    stampsCount: row.stamps_count || 0,
-    stampsRequiredForFreeDrink: row.stamps_required_for_free_drink || 10,
-    favoriteDrinkIds: row.favorite_drink_ids || [],
-    notificationPreferences: row.notification_preferences || INITIAL_USER_PROFILE.notificationPreferences,
-    redeemedVouchers: row.redeemed_vouchers || [],
-    savedAddresses: row.saved_addresses || INITIAL_USER_PROFILE.savedAddresses,
-    savedPaymentMethods: row.saved_payment_methods || INITIAL_USER_PROFILE.savedPaymentMethods,
-    phoneConfirmed: row.phone_confirmed || false,
-  };
+  return normalizeUserProfile(row);
 }
 
 export async function saveUserProfileToCloud(userId: string, profile: UserProfile): Promise<void> {

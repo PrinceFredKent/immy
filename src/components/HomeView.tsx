@@ -405,29 +405,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* 4. Popular Drinks Section */}
       {drinks.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl bg-[#14161f] border border-white/5 p-8 text-center space-y-4 max-w-lg mx-auto shadow-xl my-6"
-        >
-          <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
-            <Flame className="w-8 h-8 animate-pulse" />
+        <div className="space-y-3 my-4">
+          <div className="flex items-center justify-between">
+            <div className="h-6 w-44 rounded-lg bg-white/10 animate-pulse" />
+            <div className="h-4 w-16 rounded bg-white/10 animate-pulse" />
           </div>
-          <div className="space-y-1">
-            <h3 className="font-display font-extrabold text-lg text-white">Menu is being Prepared</h3>
-            <p className="text-xs sm:text-sm text-zinc-400">
-              We are currently preparing our fresh menu. Please check back shortly or log in as administrator to customize and add delicious drinks to the list!
-            </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={`home-skeleton-${i}`}
+                className="relative bg-[#14161f] border border-white/10 rounded-3xl p-3 sm:p-4 shadow-xl flex flex-col justify-between overflow-hidden"
+              >
+                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+                <div className="aspect-square w-full rounded-2xl bg-white/5 animate-pulse mb-2.5" />
+                <div className="space-y-2">
+                  <div className="h-4 w-3/4 rounded bg-white/10 animate-pulse" />
+                  <div className="h-3 w-1/2 rounded bg-white/5 animate-pulse" />
+                  <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                    <div className="h-4 w-14 rounded bg-white/10 animate-pulse" />
+                    <div className="h-7 w-7 rounded-xl bg-white/10 animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="pt-2">
-            <button
-              onClick={() => onNavigateToMenu('all')}
-              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-sm transition-all"
-            >
-              Go to Menu Page
-            </button>
-          </div>
-        </motion.div>
+        </div>
       ) : (
         <>
           <motion.div 

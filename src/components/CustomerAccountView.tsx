@@ -67,6 +67,8 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({
     setIsEditing(false);
   };
 
+  const addressList = Array.isArray(userProfile.savedAddresses) ? userProfile.savedAddresses : [];
+
   const handleCreateAddress = (e: React.FormEvent) => {
     e.preventDefault();
     if (!street.trim()) return;
@@ -78,7 +80,7 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({
       unit: unit.trim() || undefined,
       city: city.trim() || 'Kampala, Uganda',
       notes: notes.trim() || undefined,
-      isDefault: userProfile.savedAddresses.length === 0,
+      isDefault: addressList.length === 0,
     };
 
     onAddNewAddress(newAddress);
@@ -263,7 +265,7 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({
               <input
                 type="text"
                 required
-                placeholder="Street / Plot (e.g. Acacia Avenue Plot 14)"
+                placeholder="Street / Plot (e.g. Plot 42, Nasser Road)"
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
@@ -303,7 +305,7 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({
 
         {/* Addresses List */}
         <div className="space-y-2.5">
-          {userProfile.savedAddresses.map((addr) => (
+          {addressList.map((addr) => (
             <div
               key={addr.id}
               className={`p-3.5 rounded-2xl bg-black/30 border transition-all flex items-start justify-between gap-3 ${
@@ -337,7 +339,7 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({
                   </button>
                 )}
 
-                {userProfile.savedAddresses.length > 1 && (
+                {addressList.length > 1 && (
                   <button
                     onClick={() => onDeleteAddress(addr.id)}
                     className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-white/5 transition-colors"
@@ -350,6 +352,28 @@ export const CustomerAccountView: React.FC<CustomerAccountViewProps> = ({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Sign Out Card */}
+      <div className="bg-[#13161e] border border-white/10 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-sm text-white flex items-center gap-2">
+            <LogOut className="w-4 h-4 text-amber-400" />
+            Session & Account Access
+          </h3>
+          <p className="text-xs text-zinc-400 mt-1">
+            Sign out of {userProfile.name || 'your account'}. Only your active cart is emptied — your saved addresses, favorites, and order history remain securely preserved.
+          </p>
+        </div>
+        <button
+          id="customer-signout-btn"
+          type="button"
+          onClick={onLogout}
+          className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-200 hover:text-white border border-white/15 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 self-start sm:self-auto shrink-0"
+        >
+          <LogOut className="w-3.5 h-3.5 text-amber-400" />
+          <span>Sign Out</span>
+        </button>
       </div>
 
       {/* Account Management & Danger Zone */}
