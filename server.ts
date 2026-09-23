@@ -3,6 +3,15 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import "dotenv/config";
+import { getVapidPublicKey, addOrUpdateSubscription } from "./serverPush";
+import {
+  addSSEClient,
+  loadOrdersFromDisk,
+  createOrder,
+  updateOrderStatus,
+  getStoredSettings,
+  saveStoredSettings,
+} from "./serverOrderStore";
 
 // Smart fallback generator in case API is unavailable or rate-limited
 function generateSmartDrinkFallback(name: string, category: string) {
@@ -50,6 +59,90 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  // ----------------------------------------------------
+  // REAL-TIME ORDERS & BACKGROUND SYNC API
+  // ----------------------------------------------------
+
+  // 1. Get all stored orders
+  app.get("/api/orders", (req, res) => {
+    try {
+      const orders = loadOrdersFromDisk();
+      res.json(orders);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 2. Submit new order (persists to disk, broadcasts SSE, triggers Telegram & Push notifications)
+  app.post("/api/orders", async (req, res) => {
+    try {
+      const order = req.body;
+      if (!order || !order.id) {
+        return res.status(400).json({ error: "Invalid order data" });
+      }
+      const saved = await createOrder(order);
+      res.status(201).json(saved);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 3. Update order status & dynamic progress (admin -> customer real-time sync)
+  app.patch("/api/orders/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, progressPercent } = req.body;
+      if (!status) {
+        return res.status(400).json({ error: "Status is required" });
+      }
+      const updated = await updateOrderStatus(id, status, progressPercent);
+      if (!updated) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 4. Server-Sent Events (SSE) stream for zero-latency live synchronization
+  app.get("/api/orders/events", (req, res) => {
+    addSSEClient(res);
+  });
+
+  // 5. Web Push VAPID Public Key for client browser subscription
+  app.get("/api/push/vapid-public-key", (req, res) => {
+    res.json({ publicKey: getVapidPublicKey() });
+  });
+
+  // 6. Save client Push Subscription (Android background alerts)
+  app.post("/api/push/subscribe", (req, res) => {
+    try {
+      const { subscription, role, orderId } = req.body;
+      if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ error: "Invalid subscription" });
+      }
+      addOrUpdateSubscription(subscription, role || "customer", orderId);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 7. Admin Dispatch Settings (Telegram / WhatsApp)
+  app.get("/api/settings", (req, res) => {
+    res.json(getStoredSettings());
+  });
+
+  app.post("/api/settings", (req, res) => {
+    try {
+      saveStoredSettings(req.body);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // Server-side initialization of Gemini API client (if key is set)
   const ai = process.env.GEMINI_API_KEY

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Compass, 
   MapPin, 
@@ -7,8 +7,6 @@ import {
   PackageCheck, 
   Bike, 
   Share2, 
-  Sparkles,
-  ChevronRight,
   Leaf,
   XCircle,
   AlertTriangle,
@@ -19,53 +17,41 @@ import { formatCurrency } from '../utils/formatters';
 
 interface LiveTrackerProps {
   activeOrder: Order | null;
-  onUpdateOrderStatus: (status: DeliveryStatus, progress: number) => void;
-  onStartDemoOrder: () => void;
+  onUpdateOrderStatus?: (status: DeliveryStatus, progress: number) => void;
   onViewMenu: () => void;
   onCancelOrder?: (orderId: string) => void;
 }
 
 export const LiveTracker: React.FC<LiveTrackerProps> = ({
   activeOrder,
-  onUpdateOrderStatus,
-  onStartDemoOrder,
   onViewMenu,
   onCancelOrder,
 }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [isAutoSimulating, setIsAutoSimulating] = useState(true);
 
-  // Auto-progress simulation effect (Placed -> Packaged -> On Way -> Delivered)
-  useEffect(() => {
-    if (!activeOrder || activeOrder.status === 'delivered' || activeOrder.status === 'cancelled' || !isAutoSimulating) {
-      return;
+  // Dynamic progress percentage calculated directly from order status & admin updates
+  const getDynamicProgress = (status: DeliveryStatus, explicitPercent?: number): number => {
+    if (typeof explicitPercent === 'number' && explicitPercent > 0) {
+      return explicitPercent;
     }
-
-    const interval = setInterval(() => {
-      const currentStatus = activeOrder.status;
-      const currentProgress = activeOrder.progressPercent || 20;
-
-      if (currentStatus === 'placed' && currentProgress < 30) {
-        onUpdateOrderStatus('placed', Math.min(30, currentProgress + 4));
-      } else if (currentStatus === 'placed' && currentProgress >= 30) {
-        onUpdateOrderStatus('packaged', 40);
-      } else if (currentStatus === 'packaged' && currentProgress < 70) {
-        onUpdateOrderStatus('packaged', Math.min(70, currentProgress + 5));
-      } else if (currentStatus === 'packaged' && currentProgress >= 70) {
-        onUpdateOrderStatus('on_the_way', 75);
-      } else if (currentStatus === 'on_the_way' && currentProgress < 100) {
-        const nextProg = Math.min(100, currentProgress + 4);
-        if (nextProg >= 100) {
-          onUpdateOrderStatus('delivered', 100);
-        } else {
-          onUpdateOrderStatus('on_the_way', nextProg);
-        }
-      }
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, [activeOrder, isAutoSimulating, onUpdateOrderStatus]);
+    switch (status) {
+      case 'placed':
+        return 25;
+      case 'brewing':
+        return 45;
+      case 'packaged':
+        return 65;
+      case 'on_the_way':
+        return 85;
+      case 'delivered':
+        return 100;
+      case 'cancelled':
+        return 0;
+      default:
+        return 20;
+    }
+  };
 
   const handleShareTracking = () => {
     setCopiedLink(true);
@@ -85,21 +71,13 @@ export const LiveTracker: React.FC<LiveTrackerProps> = ({
         <p className="text-sm text-zinc-400 max-w-md mx-auto mb-8 leading-relaxed">
           Order your favorite fresh juices, smoothies, or pastries to experience live doorstep status updates.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="flex items-center justify-center">
           <button
             id="tracker-order-now-btn"
             onClick={onViewMenu}
             className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold text-sm shadow-lg shadow-amber-500/25 transition-all"
           >
             Explore Drinks Menu
-          </button>
-          <button
-            id="tracker-demo-order-btn"
-            onClick={onStartDemoOrder}
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white font-medium text-sm border border-white/10 transition-colors flex items-center justify-center gap-2"
-          >
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            Launch Live Tracker Demo
           </button>
         </div>
       </div>
@@ -197,10 +175,10 @@ export const LiveTracker: React.FC<LiveTrackerProps> = ({
             
             <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-white tracking-tight">
               {activeOrder.status === 'placed' && 'Order Received & Confirmed'}
+              {activeOrder.status === 'brewing' && 'Brewing & Blending Fresh Drinks'}
               {activeOrder.status === 'packaged' && 'Drinks Packaged & Sealed'}
               {activeOrder.status === 'on_the_way' && 'Courier On The Way to You'}
               {activeOrder.status === 'delivered' && 'Delivered! Enjoy Your Drinks'}
-              {activeOrder.status === 'brewing' && 'Order Received & Confirmed'}
             </h1>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1">
               Estimated arrival:{' '}
@@ -211,7 +189,7 @@ export const LiveTracker: React.FC<LiveTrackerProps> = ({
             </p>
           </div>
 
-          {/* Controls & Share */}
+          {/* Share Action */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               id="tracker-share-btn"
@@ -222,41 +200,16 @@ export const LiveTracker: React.FC<LiveTrackerProps> = ({
               <Share2 className="w-4 h-4 text-amber-400" />
               <span>{copiedLink ? 'Copied!' : 'Share'}</span>
             </button>
-
-            {/* Advance Step simulation button */}
-            <button
-              id="tracker-advance-step-btn"
-              onClick={() => {
-                const stageList: DeliveryStatus[] = ['placed', 'packaged', 'on_the_way', 'delivered'];
-                const cur = activeOrder.status === 'brewing' ? 'placed' : activeOrder.status;
-                const cIdx = stageList.indexOf(cur);
-                const nextIdx = (cIdx + 1) % stageList.length;
-                const nextStatus = stageList[nextIdx];
-                const progressMap: Record<DeliveryStatus, number> = {
-                  placed: 20,
-                  brewing: 20,
-                  packaged: 55,
-                  on_the_way: 85,
-                  delivered: 100,
-                  cancelled: 0,
-                };
-                onUpdateOrderStatus(nextStatus, progressMap[nextStatus]);
-              }}
-              className="px-3 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1 transition-all"
-            >
-              <span>Next Stage</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
 
-        {/* Milestone Progress Bar (Placed -> Packaged -> On Way -> Delivered) */}
+        {/* Dynamic Milestone Progress Bar (Placed -> Packaged -> On Way -> Delivered) */}
         <div className="pt-4 border-t border-white/10 space-y-4">
           <div className="relative">
             <div className="h-2.5 w-full bg-white/10 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-gradient-to-r from-amber-500 via-amber-400 to-emerald-400 transition-all duration-700 ease-out rounded-full"
-                style={{ width: `${Math.max(activeOrder.progressPercent || 25, 10)}%` }}
+                style={{ width: `${Math.max(getDynamicProgress(activeOrder.status, activeOrder.progressPercent), 10)}%` }}
               />
             </div>
           </div>

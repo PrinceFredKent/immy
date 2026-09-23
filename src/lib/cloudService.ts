@@ -336,70 +336,205 @@ export async function deleteHeroSlideFromCloud(slideId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// 3. ORDERS
+// 3. ORDERS (Persistent Backend Store + Real-time SSE Sync + Supabase fallback)
 // ---------------------------------------------------------------------------
 
-export function subscribeToOrders(onUpdate: (orders: Order[]) => void): () => void {
-  // Initial load
-  supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .then(({ data, error }) => {
-      if (error) {
-        console.warn('Error loading orders:', error.message);
-        return;
+export function subscribeToOrders(
+  onUpdate: (orders: Order[]) => void,
+  onNewOrder?: (order: Order) => void
+): () => void {
+  let isCancelled = false;
+
+  // 1. Initial Load: Fetch latest persistent orders from Backend API
+  fetch('/api/orders')
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      if (!isCancelled && Array.isArray(data) && data.length > 0) {
+        onUpdate(data);
       }
-      if (data && data.length > 0) {
-        onUpdate(data.map(rowToOrder));
+    })
+    .catch((err) => {
+      console.debug('Backend orders fetch notice (will fallback to Supabase/local):', err.message);
+      // Fallback: If backend is booting, try Supabase if configured
+      if (supabase) {
+        supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .then(
+            ({ data, error }) => {
+              if (!error && data && data.length > 0 && !isCancelled) {
+                onUpdate(data.map(rowToOrder));
+              }
+            },
+            () => {}
+          );
       }
     });
 
-  const channel = supabase
-    .channel('orders-changes')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'orders' },
-      async () => {
-        const { data } = await supabase
-          .from('orders')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (data && data.length > 0) {
-          onUpdate(data.map(rowToOrder));
+  // 2. Real-time Live Synchronization via Server-Sent Events (SSE)
+  let eventSource: EventSource | null = null;
+  try {
+    eventSource = new EventSource('/api/orders/events');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === 'new-order' && payload.data) {
+          if (onNewOrder) onNewOrder(payload.data);
+        } else if (payload.type === 'orders-updated' && Array.isArray(payload.data)) {
+          onUpdate(payload.data);
+        } else if (payload.type === 'order-status-changed' && payload.data) {
+          // Re-fetch fresh list or update locally
+          fetch('/api/orders')
+            .then((r) => r.json())
+            .then((fresh) => {
+              if (Array.isArray(fresh)) onUpdate(fresh);
+            })
+            .catch(() => {});
         }
+      } catch (e) {
+        console.debug('SSE parse notice:', e);
       }
-    )
-    .subscribe();
+    };
+
+    eventSource.onerror = () => {
+      // EventSource automatically reconnects on error
+    };
+  } catch (err) {
+    console.debug('SSE connection init:', err);
+  }
+
+  // 3. Supabase Realtime Channel fallback (if active)
+  let sbChannel: any = null;
+  try {
+    sbChannel = supabase
+      .channel('orders-realtime-feed')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        async (payload) => {
+          if (payload.eventType === 'INSERT' && payload.new) {
+            try {
+              const newOrder = rowToOrder(payload.new);
+              if (onNewOrder) onNewOrder(newOrder);
+            } catch (e) {
+              console.debug('Error converting inserted order row:', e);
+            }
+          }
+          const { data } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (data && data.length > 0 && !isCancelled) {
+            onUpdate(data.map(rowToOrder));
+          }
+        }
+      )
+      .on('broadcast', { event: 'new-order' }, ({ payload }) => {
+        if (payload && payload.id && onNewOrder) {
+          onNewOrder(payload as Order);
+        }
+      })
+      .subscribe();
+  } catch (e) {
+    // Supabase channel optional
+  }
 
   return () => {
-    supabase.removeChannel(channel);
+    isCancelled = true;
+    if (eventSource) {
+      eventSource.close();
+    }
+    if (sbChannel) {
+      try {
+        supabase.removeChannel(sbChannel);
+      } catch (e) {}
+    }
   };
 }
 
 export async function saveOrderToCloud(order: Order): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  const row = {
-    ...sanitizeForDb(orderToRow(order)),
-    user_id: user?.id ?? null,
-  };
-  const { error } = await supabase.from('orders').upsert(row);
-  if (error) throw new Error(error.message);
+  // 1. Primary: Save to persistent server backend
+  try {
+    await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(order),
+    });
+  } catch (serverErr) {
+    console.warn('Backend order save failed:', serverErr);
+  }
+
+  // 2. Secondary: Persist to Supabase if available
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const row = {
+      ...sanitizeForDb(orderToRow(order)),
+      user_id: user?.id ?? null,
+    };
+    await supabase.from('orders').upsert(row);
+  } catch (sbErr) {
+    // Supabase optional
+  }
+
+  // 3. Real-time broadcast for zero-latency admin alert across all connected tabs/devices
+  try {
+    const channel = supabase.channel('orders-realtime-feed');
+    await channel.send({
+      type: 'broadcast',
+      event: 'new-order',
+      payload: order,
+    });
+  } catch (bErr) {
+    console.debug('Realtime broadcast notice:', bErr);
+  }
+
+  // 4. Trigger instant background mobile alerts (Telegram / WhatsApp / Webhook)
+  try {
+    const { dispatchRealtimeAdminAlerts } = await import('./dispatchService');
+    await dispatchRealtimeAdminAlerts(order);
+  } catch (dispatchErr) {
+    console.debug('Mobile dispatch alert notice:', dispatchErr);
+  }
 }
 
-export async function updateOrderStatusInCloud(orderId: string, status: DeliveryStatus): Promise<void> {
-  const progressPercent =
-    status === 'placed' ? 15 :
-    status === 'brewing' ? 40 :
-    status === 'packaged' ? 65 :
-    status === 'on_the_way' ? 85 :
-    status === 'delivered' ? 100 : 0;
+export async function updateOrderStatusInCloud(
+  orderId: string,
+  status: DeliveryStatus,
+  progressPercent?: number
+): Promise<void> {
+  const calculatedPercent =
+    progressPercent ??
+    (status === 'placed' ? 25 :
+     status === 'brewing' ? 45 :
+     status === 'packaged' ? 65 :
+     status === 'on_the_way' ? 85 :
+     status === 'delivered' ? 100 : 0);
 
-  const { error } = await supabase
-    .from('orders')
-    .update({ status, progress_percent: progressPercent })
-    .eq('id', orderId);
-  if (error) throw new Error(error.message);
+  // 1. Primary: Update on backend server
+  try {
+    await fetch(`/api/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, progressPercent: calculatedPercent }),
+    });
+  } catch (serverErr) {
+    console.warn('Backend order status update failed:', serverErr);
+  }
+
+  // 2. Secondary: Update Supabase if available
+  try {
+    await supabase
+      .from('orders')
+      .update({ status, progress_percent: calculatedPercent })
+      .eq('id', orderId);
+  } catch (sbErr) {
+    // Supabase optional
+  }
 }
 
 // ---------------------------------------------------------------------------

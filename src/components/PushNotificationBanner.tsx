@@ -3,8 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bell, 
   X, 
-  ChevronRight, 
-  Compass, 
   CheckCircle2, 
   Leaf, 
   Bike, 
@@ -77,7 +75,11 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
               }
             }}
             id="push-notification-toast"
-            className="pointer-events-auto w-full max-w-lg bg-[#141720]/95 backdrop-blur-xl border border-amber-500/40 rounded-2xl p-4 text-white shadow-2xl shadow-amber-500/15 flex items-start gap-3.5 transition-colors hover:border-amber-400 cursor-grab active:cursor-grabbing"
+            onClick={() => {
+              handleTrack();
+              handleDismiss();
+            }}
+            className="pointer-events-auto w-full max-w-lg bg-[#141720]/95 backdrop-blur-xl border border-amber-500/40 rounded-2xl p-4 text-white shadow-2xl shadow-amber-500/15 flex items-start gap-3.5 transition-colors hover:border-amber-400 cursor-pointer"
           >
             <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
               {getStatusIcon(activeNotification.status)}
@@ -93,7 +95,10 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
                 </div>
                 <motion.button
                   whileTap={{ scale: 0.85 }}
-                  onClick={handleDismiss}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDismiss();
+                  }}
                   className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
                   aria-label="Dismiss notification"
                 >
@@ -107,25 +112,6 @@ export const PushNotificationBanner: React.FC<PushNotificationBannerProps> = ({
               <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed">
                 {activeNotification.message}
               </p>
-
-              <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between">
-                <span className="text-[11px] text-zinc-400 font-mono">
-                  {activeNotification.orderNumber ? `Order #${activeNotification.orderNumber}` : 'Immy Real-Time Notification'}
-                </span>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  whileHover={{ x: 2 }}
-                  onClick={() => {
-                    handleTrack();
-                    handleDismiss();
-                  }}
-                  className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
-                >
-                  <Compass className="w-3.5 h-3.5" />
-                  <span>Live Courier Map</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </motion.button>
-              </div>
             </div>
           </motion.div>
         </div>

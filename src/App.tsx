@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
@@ -39,7 +39,8 @@ import { CATEGORIES, MOCK_DRINKS, AVAILABLE_ADD_ONS } from './data/mockDrinks';
 import { DEFAULT_HERO_SLIDES } from './data/mockHeroSlides';
 import { INITIAL_USER_PROFILE, INITIAL_ORDER_HISTORY, normalizeUserProfile } from './data/mockUserData';
 import { calculateItemPrice, formatCurrency, safeLocalStorage } from './utils/formatters';
-import { triggerPushNotification, ORDER_STATUS_NOTIFICATIONS } from './utils/notifications';
+import { triggerPushNotification, ORDER_STATUS_NOTIFICATIONS, notifyAdminNewOrder } from './utils/notifications';
+import { registerServiceWorker, subscribeToPushNotifications } from './lib/pushClient';
 
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
@@ -54,6 +55,7 @@ import { OrdersView } from './components/OrdersView';
 import { CustomerAccountView } from './components/CustomerAccountView';
 import { ReceiptModal } from './components/ReceiptModal';
 import { PushNotificationBanner } from './components/PushNotificationBanner';
+import { AdminOrderAlertBanner } from './components/AdminOrderAlertBanner';
 import { AuthModal } from './components/AuthModal';
 import { AdminAccountView } from './components/AdminAccountView';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -113,6 +115,39 @@ export default function App() {
   // Dynamic Hero Banner Slides — cloud is the sole source of truth
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(DEFAULT_HERO_SLIDES);
 
+  // Authentication & App Protection State
+  const [authUser, setAuthUser] = useState<AuthUser>(() => {
+    const saved = safeLocalStorage.getItem('immy_auth_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        // fallback
+      }
+    }
+    return {
+      id: '',
+      name: '',
+      email: '',
+      role: 'customer',
+      isLoggedIn: false,
+    };
+  });
+
+  // Incoming Real-time Admin Order Alert State
+  const [incomingAdminOrderAlert, setIncomingAdminOrderAlert] = useState<Order | null>(null);
+  const notifiedOrderIdsRef = useRef<Set<string>>(new Set());
+  const authUserRef = useRef(authUser);
+  const currentTabRef = useRef(currentTab);
+
+  useEffect(() => {
+    authUserRef.current = authUser;
+  }, [authUser]);
+
+  useEffect(() => {
+    currentTabRef.current = currentTab;
+  }, [currentTab]);
+
   // Real-time Cloud Subscriptions
   useEffect(() => {
     seedDrinksIfEmpty().catch(console.error);
@@ -124,16 +159,57 @@ export default function App() {
       }
     });
 
+    // Register background Web Push Service Worker
+    registerServiceWorker();
+
     const unsubDrinks = subscribeToDrinks((cloudDrinks) => {
       setDrinks(cloudDrinks || []);
       setIsDrinksLoading(false);
     });
 
-    const unsubOrders = subscribeToOrders((cloudOrders) => {
-      if (cloudOrders && cloudOrders.length > 0) {
-        setOrderHistory(cloudOrders);
+    const unsubOrders = subscribeToOrders(
+      (cloudOrders) => {
+        if (cloudOrders && cloudOrders.length > 0) {
+          setOrderHistory(cloudOrders);
+          safeLocalStorage.setItem('immy_orders', JSON.stringify(cloudOrders));
+
+          setActiveOrder((currentActive) => {
+            if (currentActive) {
+              const updated = cloudOrders.find((o) => o.id === currentActive.id);
+              if (updated) return updated;
+            }
+            // Auto-restore customer's active order on reload/reopen from cloud
+            try {
+              const myIds: string[] = JSON.parse(safeLocalStorage.getItem('immy_my_order_ids') || '[]');
+              const myPending = cloudOrders.find(
+                (o) => myIds.includes(o.id) && o.status !== 'delivered' && o.status !== 'cancelled'
+              );
+              if (myPending) return myPending;
+            } catch {}
+            return currentActive;
+          });
+        }
+      },
+      (newOrder) => {
+        // Prevent duplicate alerts in the current session
+        if (notifiedOrderIdsRef.current.has(newOrder.id)) return;
+        notifiedOrderIdsRef.current.add(newOrder.id);
+
+        setOrderHistory((prev) => {
+          if (prev.some((o) => o.id === newOrder.id)) return prev;
+          return [newOrder, ...prev];
+        });
+
+        // Trigger real-time alert if user is an admin or currently in admin view
+        const isCurrentAdmin = authUserRef.current.role === 'admin' || currentTabRef.current === 'profile';
+        if (isCurrentAdmin) {
+          notifyAdminNewOrder(newOrder, () => {
+            setCurrentTab('profile');
+          });
+          setIncomingAdminOrderAlert(newOrder);
+        }
       }
-    });
+    );
 
     return () => {
       unsubSlides();
@@ -180,12 +256,45 @@ export default function App() {
   // Orders & Live Tracking
   const [orderHistory, setOrderHistory] = useState<Order[]>(() => {
     const saved = safeLocalStorage.getItem('immy_orders') || safeLocalStorage.getItem('sipcraft_orders');
-    return saved ? JSON.parse(saved) : INITIAL_ORDER_HISTORY;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (o: any) =>
+              o &&
+              o.id &&
+              !o.id.startsWith('ord-pfk-') &&
+              !o.id.startsWith('ord-sn-') &&
+              !o.id.startsWith('ord-dm-') &&
+              !o.id.startsWith('ord-sim-') &&
+              !o.id.startsWith('demo-')
+          );
+        }
+      } catch {}
+    }
+    return INITIAL_ORDER_HISTORY;
   });
 
   const [activeOrder, setActiveOrder] = useState<Order | null>(() => {
     const saved = safeLocalStorage.getItem('immy_active_order') || safeLocalStorage.getItem('sipcraft_active_order');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (
+          parsed &&
+          parsed.id &&
+          !parsed.id.startsWith('ord-pfk-') &&
+          !parsed.id.startsWith('ord-sn-') &&
+          !parsed.id.startsWith('ord-dm-') &&
+          !parsed.id.startsWith('ord-sim-') &&
+          !parsed.id.startsWith('demo-')
+        ) {
+          return parsed;
+        }
+      } catch {}
+    }
+    return null;
   });
 
   const [viewingReceiptOrder, setViewingReceiptOrder] = useState<Order | null>(null);
@@ -199,25 +308,6 @@ export default function App() {
 
   // Push Notification State
   const [currentPushEvent, setCurrentPushEvent] = useState<PushNotificationEvent | null>(null);
-
-  // Authentication & App Protection State
-  const [authUser, setAuthUser] = useState<AuthUser>(() => {
-    const saved = safeLocalStorage.getItem('immy_auth_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // fallback
-      }
-    }
-    return {
-      id: '',
-      name: '',
-      email: '',
-      role: 'customer',
-      isLoggedIn: false,
-    };
-  });
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalConfig, setAuthModalConfig] = useState<{
@@ -485,16 +575,26 @@ export default function App() {
 
   // ORDER STATUS UPDATE (Admin Operations)
   const handleAdminUpdateOrderStatus = async (orderId: string, newStatus: DeliveryStatus) => {
+    const progressMap: Record<DeliveryStatus, number> = {
+      placed: 25,
+      brewing: 45,
+      packaged: 65,
+      on_the_way: 85,
+      delivered: 100,
+      cancelled: 0,
+    };
+    const newProgress = progressMap[newStatus] ?? 25;
+
     setOrderHistory((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus, progressPercent: newProgress } : o))
     );
     if (activeOrder && activeOrder.id === orderId) {
-      setActiveOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
+      setActiveOrder((prev) => (prev ? { ...prev, status: newStatus, progressPercent: newProgress } : null));
     }
     showToast(`Order status updated to ${newStatus.replace(/_/g, ' ')}`);
 
     try {
-      await updateOrderStatusInCloud(orderId, newStatus);
+      await updateOrderStatusInCloud(orderId, newStatus, newProgress);
     } catch (err) {
       console.error('Failed updating order status in cloud:', err);
     }
@@ -719,6 +819,32 @@ export default function App() {
     setOrderHistory((prev) => [newOrder, ...prev]);
     setCart([]);
 
+    // Save order ID to this device's memory so placed orders always show even when app is closed and reopened
+    try {
+      const existingIds: string[] = JSON.parse(safeLocalStorage.getItem('immy_my_order_ids') || '[]');
+      if (!existingIds.includes(newOrder.id)) {
+        existingIds.unshift(newOrder.id);
+        safeLocalStorage.setItem('immy_my_order_ids', JSON.stringify(existingIds));
+      }
+    } catch {}
+
+    // Persist to backend server database & broadcast real-time alert to all admin devices
+    saveOrderToCloud(newOrder).catch((err) => {
+      console.warn('Error persisting order to cloud:', err);
+    });
+
+    // Subscribe this device to background push notifications for this order
+    subscribeToPushNotifications('customer', newOrder.id).catch(() => {});
+
+    // If the local user is an admin (e.g. testing checkout), trigger real-time alert locally too
+    if (authUser.role === 'admin') {
+      notifiedOrderIdsRef.current.add(newOrder.id);
+      notifyAdminNewOrder(newOrder, () => {
+        setCurrentTab('profile');
+      });
+      setIncomingAdminOrderAlert(newOrder);
+    }
+
     // Send push notification for confirmed order
     const confirmPush: PushNotificationEvent = {
       ...ORDER_STATUS_NOTIFICATIONS.placed,
@@ -736,34 +862,6 @@ export default function App() {
     if (typeof window !== 'undefined' && window.navigator && typeof window.navigator.vibrate === 'function') {
       window.navigator.vibrate([100, 50, 100]);
     }
-  };
-
-  // Demo order generator for instant test
-  const handleStartDemoOrder = () => {
-    const demoItems: CartItem[] = [
-      {
-        cartItemId: `demo-1-${Date.now()}`,
-        drink: drinks[0] || MOCK_DRINKS[0],
-        customization: (drinks[0] || MOCK_DRINKS[0]).defaultCustomization,
-        quantity: 1,
-        unitPrice: (drinks[0] || MOCK_DRINKS[0]).price,
-        totalPrice: (drinks[0] || MOCK_DRINKS[0]).price,
-      },
-    ];
-
-    handleCheckoutComplete({
-      items: demoItems,
-      subtotal: demoItems[0].totalPrice,
-      deliveryFee: 1500,
-      tip: 0,
-      discount: 0,
-      total: demoItems[0].totalPrice + 1500,
-      customerName: userProfile.name,
-      customerPhone: userProfile.phone,
-      customerEmail: userProfile.email,
-      deliveryAddress: activeAddress,
-      paymentMethod: userProfile.savedPaymentMethods[0],
-    });
   };
 
   // Live Tracking simulation step handler for active order
@@ -852,7 +950,7 @@ export default function App() {
   };
 
   // Cancel Order handler (disallowed if on the way or delivered)
-  const handleCancelOrder = (orderId: string) => {
+  const handleCancelOrder = async (orderId: string) => {
     const order = orderHistory.find((o) => o.id === orderId);
     if (!order) return;
 
@@ -873,6 +971,7 @@ export default function App() {
     });
 
     setOrderHistory(updatedOrders);
+    safeLocalStorage.setItem('immy_orders', JSON.stringify(updatedOrders));
 
     if (activeOrder && activeOrder.id === orderId) {
       setActiveOrder({
@@ -882,7 +981,14 @@ export default function App() {
       });
     }
 
-    showToast(`Order #${order.orderNumber} has been cancelled.`);
+    showToast(`Order #${order.orderNumber || order.id} has been cancelled.`);
+
+    // Persist status to cloud & broadcast to admin dashboard
+    try {
+      await updateOrderStatusInCloud(orderId, 'cancelled', 0);
+    } catch (err) {
+      console.warn('Failed to sync order cancellation to cloud:', err);
+    }
   };
 
   // Logout handler: Only clears out the active cart (with a subtle warning).
@@ -974,7 +1080,7 @@ export default function App() {
     showToast('Your account has been deleted successfully.');
   };
 
-  // Customer-specific orders filtering (Preserves user order history consistently even across logout)
+  // Customer-specific orders filtering (Preserves user order history consistently even across logout & app reload)
   const displayedOrders = useMemo(() => {
     if (authUser.role === 'admin') {
       return orderHistory;
@@ -984,29 +1090,37 @@ export default function App() {
     const userPhone = (authUser.phone || userProfile.phone || '').trim();
     const userName = (authUser.name || userProfile.name || '').toLowerCase().trim();
 
-    // If we have any user identifier from current auth session or saved profile, match orders
-    if (userEmail || userPhone || userName) {
-      const userOrders = orderHistory.filter((ord) => {
-        const ordEmail = (ord.customerEmail || '').toLowerCase().trim();
-        const ordPhone = (ord.customerPhone || '').trim();
-        const ordName = (ord.customerName || '').toLowerCase().trim();
+    let myDeviceOrderIds: string[] = [];
+    try {
+      const raw = safeLocalStorage.getItem('immy_my_order_ids');
+      if (raw) myDeviceOrderIds = JSON.parse(raw);
+    } catch {}
 
-        const matchEmail = Boolean(userEmail && ordEmail && userEmail === ordEmail);
-        const matchPhone = Boolean(userPhone && ordPhone && userPhone === ordPhone);
-        const matchName = Boolean(userName && ordName && userName === ordName);
+    const matched = orderHistory.filter((ord) => {
+      // 1. Placed on this device (guaranteed persistent match even if app was closed)
+      if (myDeviceOrderIds.includes(ord.id)) return true;
 
-        return matchEmail || matchPhone || matchName;
-      });
+      // 2. Email / phone / name matching
+      const ordEmail = (ord.customerEmail || '').toLowerCase().trim();
+      const ordPhone = (ord.customerPhone || '').trim();
+      const ordName = (ord.customerName || '').toLowerCase().trim();
 
-      if (userOrders.length > 0) {
-        return userOrders;
+      const matchEmail = Boolean(userEmail && ordEmail && userEmail === ordEmail);
+      const matchPhone = Boolean(userPhone && ordPhone && userPhone === ordPhone);
+      const matchName = Boolean(userName && ordName && userName === ordName);
+
+      if (matchEmail || matchPhone || matchName) return true;
+
+      // 3. Guest fallback
+      if (!authUser.isLoggedIn || authUser.id === 'guest') {
+        if (ord.customerEmail === 'guest@immydrinks.com' || ord.customerName === 'Guest Customer') {
+          return true;
+        }
       }
-    }
+      return false;
+    });
 
-    // Guest customers or fallback: show orders created in guest session
-    return orderHistory.filter((ord) => 
-      ord.customerEmail === 'guest@immydrinks.com' || ord.customerName === 'Guest Customer'
-    );
+    return matched;
   }, [authUser, userProfile, orderHistory]);
 
   // Reorder flow
@@ -1070,33 +1184,26 @@ export default function App() {
 
   // Filter active delivery to only the current user's genuine order
   const effectiveActiveOrder = useMemo(() => {
-    if (!activeOrder || activeOrder.status === 'delivered' || activeOrder.status === 'cancelled') {
-      return null;
-    }
+    // If admin, return activeOrder or latest in-progress order
     if (authUser.role === 'admin') {
-      return activeOrder;
+      if (activeOrder && activeOrder.status !== 'delivered' && activeOrder.status !== 'cancelled') {
+        return activeOrder;
+      }
+      return orderHistory.find((o) => o.status !== 'delivered' && o.status !== 'cancelled') || null;
     }
-    if (authUser.isLoggedIn && authUser.id !== 'guest') {
-      const userEmail = (authUser.email || userProfile.email || '').toLowerCase().trim();
-      const userPhone = (authUser.phone || userProfile.phone || '').trim();
-      const userName = (authUser.name || userProfile.name || '').toLowerCase().trim();
 
-      const ordEmail = (activeOrder.customerEmail || '').toLowerCase().trim();
-      const ordPhone = (activeOrder.customerPhone || '').trim();
-      const ordName = (activeOrder.customerName || '').toLowerCase().trim();
-
-      const matches =
-        (userEmail && ordEmail && userEmail === ordEmail) ||
-        (userPhone && ordPhone && userPhone === ordPhone) ||
-        (userName && ordName && userName === ordName);
-      return matches ? activeOrder : null;
+    // 1. If activeOrder is set and valid in customer's displayedOrders, return it
+    if (activeOrder && activeOrder.status !== 'delivered' && activeOrder.status !== 'cancelled') {
+      const isMine = displayedOrders.some((o) => o.id === activeOrder.id);
+      if (isMine) return activeOrder;
     }
-    // Guest customers ONLY see active orders created within their current guest session
-    const isGuestOrder =
-      activeOrder.customerEmail === 'guest@immydrinks.com' ||
-      activeOrder.customerName === 'Guest Customer';
-    return isGuestOrder ? activeOrder : null;
-  }, [activeOrder, authUser, userProfile]);
+
+    // 2. Otherwise auto-resolve the most recent active order from displayedOrders (persistent across app closes)
+    const pendingOrder = displayedOrders.find(
+      (o) => o.status !== 'delivered' && o.status !== 'cancelled'
+    );
+    return pendingOrder || null;
+  }, [activeOrder, authUser.role, displayedOrders, orderHistory]);
 
   // Active delivery check (hidden if delivered, cancelled, or not belonging to current customer)
   const hasActiveDelivery = Boolean(effectiveActiveOrder);
@@ -1571,7 +1678,6 @@ export default function App() {
             <LiveTracker
               activeOrder={effectiveActiveOrder}
               onUpdateOrderStatus={handleUpdateOrderStatus}
-              onStartDemoOrder={handleStartDemoOrder}
               onViewMenu={() => setCurrentTab('menu')}
               onCancelOrder={handleCancelOrder}
             />
@@ -1874,8 +1980,18 @@ export default function App() {
         cartCount={totalCartCount}
         openCart={() => setIsCartOpen(true)}
         hasActiveOrder={hasActiveDelivery}
-        activeOrdersCount={displayedOrders.filter((o) => o.status !== 'delivered').length}
+        activeOrdersCount={displayedOrders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled').length}
         favoritesCount={userProfile.favoriteDrinkIds?.length || 0}
+      />
+
+      {/* Real-time Admin Incoming Order Alert Banner */}
+      <AdminOrderAlertBanner
+        order={incomingAdminOrderAlert}
+        onDismiss={() => setIncomingAdminOrderAlert(null)}
+        onViewOrder={() => {
+          setCurrentTab('profile');
+        }}
+        onUpdateStatus={handleAdminUpdateOrderStatus}
       />
 
       {/* Toast Notification */}

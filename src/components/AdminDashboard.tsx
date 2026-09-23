@@ -26,13 +26,33 @@ import {
   SlidersHorizontal,
   Flame,
   Layers,
-  Image as ImageIcon
+  Image as ImageIcon,
+  BellRing,
+  Volume2,
+  VolumeX,
+  Radio,
+  Send,
+  MessageSquare,
+  Smartphone,
+  XCircle,
+  AlertTriangle,
+  RotateCcw,
+  Ban
 } from 'lucide-react';
 import { Drink, Order, DeliveryStatus, DrinkCategory, HeroSlide, DrinkFlavor } from '../types';
 import { CATEGORIES } from '../data/mockDrinks';
 import { DEFAULT_HERO_SLIDES } from '../data/mockHeroSlides';
 import { formatCurrency } from '../utils/formatters';
 import { uploadDrinkImage } from '../lib/storageService';
+import { TelegramWhatsAppConfigModal } from './TelegramWhatsAppConfigModal';
+import { getWhatsAppOrderLink, getAdminDispatchSettings } from '../lib/dispatchService';
+import {
+  playAdminOrderChime,
+  getAdminSoundSetting,
+  setAdminSoundSetting,
+  requestPushPermission,
+  getPushPermissionStatus
+} from '../utils/notifications';
 
 interface AdminDashboardProps {
   drinks: Drink[];
@@ -153,8 +173,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'orders' | 'menu_crud' | 'slider' | 'inventory' | 'sales' | 'system'>('orders');
   
-  // Orders filtering
+  // Real-time audio alerts and desktop notification state
+  const [soundAlertsEnabled, setSoundAlertsEnabled] = useState<boolean>(() => getAdminSoundSetting());
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | 'unsupported'>(() => getPushPermissionStatus());
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+
+  const handleToggleSound = () => {
+    const next = !soundAlertsEnabled;
+    setSoundAlertsEnabled(next);
+    setAdminSoundSetting(next);
+    if (next) {
+      playAdminOrderChime();
+    }
+  };
+
+  const handleTestChime = () => {
+    playAdminOrderChime();
+  };
+
+  const handleRequestPushPermission = async () => {
+    const perm = await requestPushPermission('admin');
+    setPushPermission(perm);
+  };
+  
+  // Orders filtering & category tabs
   const [searchQuery, setSearchQuery] = useState('');
+  const [orderCategoryTab, setOrderCategoryTab] = useState<'pending' | 'delivered' | 'canceled' | 'all'>('pending');
+  const [pendingStageFilter, setPendingStageFilter] = useState<'all' | 'placed' | 'brewing' | 'packaged' | 'on_the_way'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | DeliveryStatus>('all');
 
   // Menu CRUD states
@@ -315,19 +360,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Calculate statistics
   const totalOrdersCount = orders.length;
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-  const activeOrders = orders.filter((o) => o.status !== 'delivered');
+  const totalRevenue = orders
+    .filter((o) => o.status !== 'cancelled')
+    .reduce((sum, o) => sum + o.total, 0);
+  const pendingOrders = orders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled');
   const deliveredOrders = orders.filter((o) => o.status === 'delivered');
+  const cancelledOrders = orders.filter((o) => o.status === 'cancelled');
+  const activeOrders = pendingOrders;
 
-  // Filter orders
+  // Filter orders according to active category tab and search query
   const filteredOrders = orders.filter((order) => {
     if (!order) return false;
-    const matchesSearch = 
-      (order.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (order.customerName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (order.deliveryAddress?.street || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    // 1. Primary Category Tab filter
+    if (orderCategoryTab === 'pending') {
+      if (order.status === 'delivered' || order.status === 'cancelled') return false;
+      if (pendingStageFilter !== 'all' && order.status !== pendingStageFilter) return false;
+    } else if (orderCategoryTab === 'delivered') {
+      if (order.status !== 'delivered') return false;
+    } else if (orderCategoryTab === 'canceled') {
+      if (order.status !== 'cancelled') return false;
+    } else if (orderCategoryTab === 'all') {
+      if (statusFilter !== 'all' && order.status !== statusFilter) return false;
+    }
+
+    // 2. Search query filter (matches ID, customer name, phone, email, address)
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+
+    const matchesId = (order.id || '').toLowerCase().includes(q);
+    const matchesOrderNum = (order.orderNumber || '').toLowerCase().includes(q);
+    const matchesCustomer = (order.customerName || '').toLowerCase().includes(q);
+    const matchesPhone = (order.customerPhone || '').toLowerCase().includes(q);
+    const matchesEmail = (order.customerEmail || '').toLowerCase().includes(q);
+    const matchesAddress = 
+      (order.deliveryAddress?.street || '').toLowerCase().includes(q) ||
+      (order.deliveryAddress?.label || '').toLowerCase().includes(q);
+
+    return matchesId || matchesOrderNum || matchesCustomer || matchesPhone || matchesEmail || matchesAddress;
   });
 
   // Filter drinks for CRUD view
@@ -462,6 +532,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return <span className="px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[11px] font-bold">Scooter On Road</span>;
       case 'delivered':
         return <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold">Completed</span>;
+      case 'cancelled':
+        return (
+          <span className="px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-bold flex items-center gap-1">
+            <XCircle className="w-3 h-3 text-rose-400" />
+            <span>Cancelled</span>
+          </span>
+        );
     }
   };
 
@@ -534,34 +611,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </p>
           </div>
 
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#13161c] border border-white/10 space-y-1">
+          <div
+            onClick={() => {
+              setActiveTab('orders');
+              setOrderCategoryTab('pending');
+              setPendingStageFilter('all');
+            }}
+            className="p-4 sm:p-5 rounded-2xl bg-[#13161c] border border-white/10 space-y-1 cursor-pointer hover:border-amber-500/50 transition-colors"
+          >
             <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
-              Active Pending Orders
+              Pending Orders
             </span>
-            <div className="text-xl sm:text-2xl font-extrabold text-white font-display">
-              {activeOrders.length}
+            <div className="text-xl sm:text-2xl font-extrabold text-white font-display flex items-center gap-2">
+              <span>{pendingOrders.length}</span>
+              {pendingOrders.some((o) => o.status === 'placed') && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-black border border-amber-500/30 uppercase tracking-wider animate-pulse">
+                  New Action
+                </span>
+              )}
             </div>
             <p className="text-[10px] text-amber-300">Requires Kitchen Prep</p>
           </div>
 
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#13161c] border border-white/10 space-y-1">
+          <div
+            onClick={() => {
+              setActiveTab('orders');
+              setOrderCategoryTab('delivered');
+            }}
+            className="p-4 sm:p-5 rounded-2xl bg-[#13161c] border border-white/10 space-y-1 cursor-pointer hover:border-emerald-500/50 transition-colors"
+          >
             <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
-              Total Menu Drinks
-            </span>
-            <div className="text-xl sm:text-2xl font-extrabold text-teal-400 font-display">
-              {drinks.length}
-            </div>
-            <p className="text-[10px] text-zinc-400">Available across all categories</p>
-          </div>
-
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#13161c] border border-white/10 space-y-1">
-            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
-              Completed Orders
+              Delivered Orders
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-emerald-400 font-display">
               {deliveredOrders.length}
             </div>
-            <p className="text-[10px] text-zinc-400">Total lifetime fulfilled</p>
+            <p className="text-[10px] text-zinc-400">Total fulfilled orders</p>
+          </div>
+
+          <div
+            onClick={() => {
+              setActiveTab('orders');
+              setOrderCategoryTab('canceled');
+            }}
+            className={`p-4 sm:p-5 rounded-2xl bg-[#13161c] border space-y-1 cursor-pointer transition-all ${
+              cancelledOrders.length > 0
+                ? 'border-rose-500/40 hover:border-rose-500/70 bg-gradient-to-br from-rose-500/[0.08] to-[#13161c]'
+                : 'border-white/10 hover:border-white/20'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
+                Canceled Orders
+              </span>
+              {cancelledOrders.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-300 font-black border border-rose-500/30">
+                  Alert
+                </span>
+              )}
+            </div>
+            <div className="text-xl sm:text-2xl font-extrabold text-rose-400 font-display">
+              {cancelledOrders.length}
+            </div>
+            <p className="text-[10px] text-rose-300/80">Customer / store cancellations</p>
           </div>
         </div>
 
@@ -577,6 +689,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           >
             <PackageCheck className="w-4 h-4" />
             <span>Orders Management ({orders.length})</span>
+            {cancelledOrders.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
+                {cancelledOrders.length} canceled
+              </span>
+            )}
           </button>
 
           <button
@@ -644,13 +761,195 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {activeTab === 'orders' && (
           <div className="space-y-4">
             
-            {/* Search & Status Filters */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#13161c] p-3 rounded-2xl border border-white/10">
+            {/* Real-time Order Stream & Alert Controls Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-[#13161c] to-emerald-500/10 border border-amber-500/30 shadow-lg">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-3.5 w-3.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500" />
+                </span>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                      <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                      Live Order Stream Active
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+                      WebSocket Connected
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Admin is notified in real-time via sound chime, desktop push alerts, and floating banners.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleToggleSound}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    soundAlertsEnabled
+                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30'
+                      : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                  }`}
+                  title="Toggle order chime sound"
+                >
+                  {soundAlertsEnabled ? (
+                    <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                  ) : (
+                    <VolumeX className="w-3.5 h-3.5 text-zinc-500" />
+                  )}
+                  <span>Sound: {soundAlertsEnabled ? 'On' : 'Muted'}</span>
+                </button>
+
+                <button
+                  onClick={handleTestChime}
+                  className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                  title="Test kitchen bell chime sound"
+                >
+                  <BellRing className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Test Chime</span>
+                </button>
+
+                <button
+                  onClick={handleRequestPushPermission}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                    pushPermission === 'granted'
+                      ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+                      : 'bg-amber-500 text-black border-amber-400 hover:bg-amber-400 shadow-sm'
+                  }`}
+                  title="Desktop push notifications"
+                >
+                  <span>{pushPermission === 'granted' ? '✓ Desktop Alerts Enabled' : 'Enable Desktop Alerts'}</span>
+                </button>
+
+                <button
+                  onClick={() => setIsDispatchModalOpen(true)}
+                  className="px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 hover:text-cyan-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                  title="Configure Telegram & WhatsApp push alerts for when the app or phone screen is closed"
+                >
+                  <Send className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Android Closed Alerts (Telegram/WhatsApp)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Primary Order Tabs: Pending, Delivered, Canceled, All */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 rounded-2xl bg-[#13161c] border border-white/10 shadow-lg">
+              {/* Tab 1: Pending */}
+              <button
+                type="button"
+                onClick={() => {
+                  setOrderCategoryTab('pending');
+                  setPendingStageFilter('all');
+                }}
+                className={`relative px-4 py-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  orderCategoryTab === 'pending'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-lg shadow-amber-500/25 font-black'
+                    : 'text-zinc-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>Pending</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                    orderCategoryTab === 'pending'
+                      ? 'bg-black/25 text-black'
+                      : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                  }`}
+                >
+                  {pendingOrders.length}
+                </span>
+                {pendingOrders.some((o) => o.status === 'placed') && (
+                  <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                  </span>
+                )}
+              </button>
+
+              {/* Tab 2: Delivered */}
+              <button
+                type="button"
+                onClick={() => setOrderCategoryTab('delivered')}
+                className={`px-4 py-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  orderCategoryTab === 'delivered'
+                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-black shadow-lg shadow-emerald-500/25 font-black'
+                    : 'text-zinc-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Delivered</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                    orderCategoryTab === 'delivered'
+                      ? 'bg-black/25 text-black'
+                      : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                  }`}
+                >
+                  {deliveredOrders.length}
+                </span>
+              </button>
+
+              {/* Tab 3: Canceled */}
+              <button
+                type="button"
+                onClick={() => setOrderCategoryTab('canceled')}
+                className={`relative px-4 py-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  orderCategoryTab === 'canceled'
+                    ? 'bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-lg shadow-rose-500/25 font-black'
+                    : 'text-zinc-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <XCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>Canceled</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                    orderCategoryTab === 'canceled'
+                      ? 'bg-black/40 text-white'
+                      : cancelledOrders.length > 0
+                      ? 'bg-rose-500/25 text-rose-300 border border-rose-500/40'
+                      : 'bg-white/5 text-zinc-400'
+                  }`}
+                >
+                  {cancelledOrders.length}
+                </span>
+                {cancelledOrders.length > 0 && orderCategoryTab !== 'canceled' && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                )}
+              </button>
+
+              {/* Tab 4: All Orders */}
+              <button
+                type="button"
+                onClick={() => setOrderCategoryTab('all')}
+                className={`px-4 py-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  orderCategoryTab === 'all'
+                    ? 'bg-white text-black shadow-lg font-black'
+                    : 'text-zinc-300 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Layers className="w-4 h-4 shrink-0" />
+                <span>All Orders</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+                    orderCategoryTab === 'all'
+                      ? 'bg-black/20 text-black'
+                      : 'bg-white/5 text-zinc-400 border border-white/10'
+                  }`}
+                >
+                  {totalOrdersCount}
+                </span>
+              </button>
+            </div>
+
+            {/* Sub-Filters & Search Bar */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#13161c] p-3 rounded-2xl border border-white/10">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
                 <input
                   type="text"
-                  placeholder="Search by order ID or address..."
+                  placeholder="Search by order ID, customer name, phone, or delivery address..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -658,53 +957,193 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       (e.target as HTMLInputElement).blur();
                     }
                   }}
-                  className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
+                  className="w-full pl-10 pr-9 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-amber-500"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-2.5 text-zinc-400 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
-              <div className="flex items-center gap-1 overflow-x-auto">
-                {(['all', 'placed', 'brewing', 'packaged', 'on_the_way', 'delivered'] as const).map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setStatusFilter(st)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize whitespace-nowrap transition-colors ${
-                      statusFilter === st
-                        ? 'bg-amber-500 text-black'
-                        : 'bg-white/5 text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    {st.replace(/_/g, ' ')}
-                  </button>
-                ))}
-              </div>
+              {/* Sub-filters for Pending tab */}
+              {orderCategoryTab === 'pending' && (
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
+                  {(
+                    [
+                      { id: 'all', label: 'All Pending', count: pendingOrders.length },
+                      { id: 'placed', label: 'Placed (New)', count: pendingOrders.filter((o) => o.status === 'placed').length },
+                      { id: 'brewing', label: 'Brewing', count: pendingOrders.filter((o) => o.status === 'brewing').length },
+                      { id: 'packaged', label: 'Packaged', count: pendingOrders.filter((o) => o.status === 'packaged').length },
+                      { id: 'on_the_way', label: 'On The Way', count: pendingOrders.filter((o) => o.status === 'on_the_way').length },
+                    ] as const
+                  ).map((st) => (
+                    <button
+                      key={st.id}
+                      onClick={() => setPendingStageFilter(st.id)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                        pendingStageFilter === st.id
+                          ? 'bg-amber-500 text-black shadow-sm'
+                          : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <span>{st.label}</span>
+                      <span className="opacity-75">({st.count})</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Sub-filters for All Orders tab */}
+              {orderCategoryTab === 'all' && (
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 md:pb-0">
+                  {(['all', 'placed', 'brewing', 'packaged', 'on_the_way', 'delivered', 'cancelled'] as const).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setStatusFilter(st)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize whitespace-nowrap transition-colors ${
+                        statusFilter === st
+                          ? 'bg-white text-black shadow-sm'
+                          : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {st.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Results count indicator */}
+            <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
+              <span>
+                Showing <strong className="text-white">{filteredOrders.length}</strong> of{' '}
+                <strong className="text-zinc-300">
+                  {orderCategoryTab === 'pending'
+                    ? `${pendingOrders.length} pending`
+                    : orderCategoryTab === 'delivered'
+                    ? `${deliveredOrders.length} delivered`
+                    : orderCategoryTab === 'canceled'
+                    ? `${cancelledOrders.length} canceled`
+                    : `${orders.length} total`}
+                </strong>{' '}
+                orders
+              </span>
+              {(searchQuery || (orderCategoryTab === 'pending' && pendingStageFilter !== 'all') || (orderCategoryTab === 'all' && statusFilter !== 'all')) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setPendingStageFilter('all');
+                    setStatusFilter('all');
+                  }}
+                  className="text-amber-400 hover:underline font-medium text-[11px]"
+                >
+                  Clear all filters
+                </button>
+              )}
             </div>
 
             {/* Orders List */}
             {filteredOrders.length === 0 ? (
-              <div className="text-center py-16 bg-[#13161c] rounded-3xl border border-white/10">
-                <Leaf className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                <h4 className="text-base font-bold text-white">No matching orders found</h4>
-                <p className="text-xs text-zinc-400 mt-1">Orders placed by customers will appear in real-time here.</p>
+              <div className="text-center py-16 bg-[#13161c] rounded-3xl border border-white/10 space-y-3">
+                {orderCategoryTab === 'canceled' ? (
+                  <>
+                    <CheckCircle2 className="w-12 h-12 text-emerald-500/70 mx-auto" />
+                    <h4 className="text-base font-bold text-white">No Canceled Orders</h4>
+                    <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                      All customer orders are currently active or successfully fulfilled. When a customer or store cancels an order, it will appear here in real-time.
+                    </p>
+                  </>
+                ) : orderCategoryTab === 'pending' ? (
+                  <>
+                    <Clock className="w-12 h-12 text-amber-500/60 mx-auto" />
+                    <h4 className="text-base font-bold text-white">No Pending Orders</h4>
+                    <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                      Kitchen is all caught up! New orders placed by customers will stream here live with sound alerts.
+                    </p>
+                  </>
+                ) : orderCategoryTab === 'delivered' ? (
+                  <>
+                    <PackageCheck className="w-12 h-12 text-emerald-500/60 mx-auto" />
+                    <h4 className="text-base font-bold text-white">No Delivered Orders Yet</h4>
+                    <p className="text-xs text-zinc-400 max-w-md mx-auto">
+                      Orders marked as delivered will be archived here for record keeping.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Leaf className="w-12 h-12 text-zinc-600 mx-auto" />
+                    <h4 className="text-base font-bold text-white">No matching orders found</h4>
+                    <p className="text-xs text-zinc-400 mt-1">Try adjusting your search query or filter criteria.</p>
+                  </>
+                )}
               </div>
             ) : (
               <div className="space-y-3">
                 {filteredOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="p-4 sm:p-5 rounded-2xl bg-[#13161c] border border-white/10 space-y-4 hover:border-amber-500/30 transition-all"
+                    className={`p-4 sm:p-5 rounded-2xl bg-[#13161c] border transition-all space-y-4 ${
+                      order.status === 'cancelled'
+                        ? 'border-rose-500/40 bg-gradient-to-b from-rose-500/[0.08] to-[#13161c] shadow-[0_0_25px_rgba(244,63,94,0.12)]'
+                        : order.status === 'placed'
+                        ? 'border-amber-500/60 bg-gradient-to-b from-amber-500/[0.06] to-[#13161c] shadow-[0_0_25px_rgba(245,158,11,0.15)]'
+                        : 'border-white/10 hover:border-amber-500/30'
+                    }`}
                   >
                     
+                    {/* Order Cancelled Notification Banner */}
+                    {order.status === 'cancelled' && (
+                      <div className="flex items-center justify-between flex-wrap gap-2.5 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-200">
+                        <div className="flex items-center gap-2">
+                          <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                          <div>
+                            <span className="font-bold text-xs uppercase tracking-wide">
+                              Order Cancelled by Customer
+                            </span>
+                            <p className="text-[11px] text-rose-300/80">
+                              Kitchen preparation and courier dispatch have been stopped.
+                            </p>
+                          </div>
+                        </div>
+                        {order.customerPhone && (
+                          <a
+                            href={`tel:${order.customerPhone}`}
+                            className="px-2.5 py-1 rounded-lg bg-rose-500/25 hover:bg-rose-500/35 text-rose-100 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                          >
+                            <Phone className="w-3 h-3" />
+                            <span>Call {order.customerPhone}</span>
+                          </a>
+                        )}
+                      </div>
+                    )}
+
                     {/* Order Header */}
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-3">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-mono text-sm font-extrabold text-amber-400">
-                            {order.orderNumber || order.id}
+                            #{order.orderNumber || order.id}
                           </span>
                           {getStatusBadge(order.status)}
+
+                          {order.status === 'placed' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black uppercase tracking-wider animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                              Action Required
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-zinc-400 mt-0.5">
                           {order.createdAt || order.estimatedDeliveryTime || 'Recently Placed'}
+                          {order.customerName && (
+                            <span className="text-zinc-300 ml-2">
+                              • Customer: <strong className="text-white">{order.customerName}</strong>
+                            </span>
+                          )}
                         </p>
                       </div>
 
@@ -713,7 +1152,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {formatCurrency(order.total)}
                         </span>
                         <span className="block text-[10px] text-amber-400 font-bold uppercase">
-                          Paid Order
+                          {order.status === 'cancelled' ? 'Halted / Refunded' : 'Paid Order'}
                         </span>
                       </div>
                     </div>
@@ -758,23 +1197,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     {/* Address & Delivery Details */}
                     {order.deliveryAddress && (
-                      <div className="flex items-center justify-between text-xs text-zinc-300 bg-white/5 p-3 rounded-xl">
+                      <div className="flex items-center justify-between text-xs text-zinc-300 bg-white/5 p-3 rounded-xl flex-wrap gap-2">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
                           <span>
-                            <strong>{order.deliveryAddress.label}:</strong> {order.deliveryAddress.street}
+                            <strong>{order.deliveryAddress.label || 'Delivery Address'}:</strong> {order.deliveryAddress.street}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-amber-300 font-bold">
-                          <Phone className="w-3.5 h-3.5" />
-                          <span>0752619129</span>
-                        </div>
+                        {order.customerPhone && (
+                          <a
+                            href={`tel:${order.customerPhone}`}
+                            className="flex items-center gap-1.5 text-amber-300 hover:text-amber-200 font-bold hover:underline"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                            <span>{order.customerPhone}</span>
+                          </a>
+                        )}
                       </div>
                     )}
 
                     {/* Action Step Controls to update Order Status */}
                     <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-white/10">
-                      <span className="text-xs font-bold text-zinc-400 uppercase">Update Status:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-zinc-400 uppercase">Update Status:</span>
+                        <a
+                          href={getWhatsAppOrderLink(
+                            order.customerPhone || getAdminDispatchSettings().whatsapp.phoneNumber || '256752619129',
+                            order
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 transition-colors"
+                          title="Open WhatsApp with full pre-formatted order details for kitchen or rider dispatch"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          <span>WhatsApp Dispatch</span>
+                        </a>
+                      </div>
 
                       <div className="flex flex-wrap items-center gap-1.5">
                         <button
@@ -812,6 +1271,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         >
                           Delivered
                         </button>
+                        {order.status !== 'cancelled' ? (
+                          <button
+                            onClick={() => onUpdateOrderStatus(order.id, 'cancelled')}
+                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                            title="Cancel order and halt preparation"
+                          >
+                            Cancel
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => onUpdateOrderStatus(order.id, 'placed')}
+                            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 flex items-center gap-1"
+                            title="Re-activate order and move back to Placed pending queue"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Reactivate Order</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -2030,6 +2507,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Telegram & WhatsApp Real-time Android Background Alert Config Modal */}
+      <TelegramWhatsAppConfigModal
+        isOpen={isDispatchModalOpen}
+        onClose={() => setIsDispatchModalOpen(false)}
+        sampleOrder={orders[0]}
+      />
 
     </div>
   );
